@@ -1,6 +1,6 @@
 # CiteAnalyzer - Clasificación de la función de cita
 
-Proyecto Desarrollo de Soluciones - MAIA Uniandes - **Grupo 24**
+Proyecto Desarrollo de Soluciones - MAIA Uniandes - **Grupo 26**
 
 ```ini
 Christian Alberto Torres Manigua # ca.torres@uniandes.edu.co
