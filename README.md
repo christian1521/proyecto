@@ -23,7 +23,7 @@ Se contemplan estos componentes para crear una solución completa para el usuari
 
 | Recurso | URL |
 | --- | --- |
-| Código | <https://github.com/christian1521/microproyecto> |
+| Código | <https://github.com/christian1521/proyecto> |
 | Tablero | <https://cite-api-production.up.railway.app/cite/> |
 | API | <https://cite-api-production.up.railway.app/docs/> |
 | Docker | `docker pull fredygamez/cite-api:v0.9` |
