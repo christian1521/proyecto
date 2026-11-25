@@ -57,19 +57,19 @@ def test_data() -> pd.DataFrame:
     return pd.DataFrame(
         [
             {
-                "citing_sentence": "Similar to the method proposed in [CITATION], we adopt a transformer-based architecture.",
+                "citing_sentence": "Similar to the method proposed in [CITA], we adopt a transformer-based architecture.",
                 "expected_label": "Application",
             },
             {
-                "citing_sentence": "This confirms earlier findings by [CITATION] regarding attention sparsity.",
+                "citing_sentence": "This confirms earlier findings by [CITA] regarding attention sparsity.",
                 "expected_label": "Evidence",
             },
             {
-                "citing_sentence": "However, [CITATION] fails to generalize to low-resource settings.",
+                "citing_sentence": "However, [CITA] fails to generalize to low-resource settings.",
                 "expected_label": "Gap",
             },
             {
-                "citing_sentence": "We compare our results against those reported in [CITATION].",
+                "citing_sentence": "We compare our results against those reported in [CITA].",
                 "expected_label": "Comparison",
             },
         ]

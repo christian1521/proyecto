@@ -37,3 +37,37 @@ venv/
 *.env
 .vscode/
 .idea/
+
+
+# Python: bytecode y entornos locales
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Pruebas y herramientas de desarrollo (no van en producción)
+app/tests/
+test_requirements.txt
+typing_requirements.txt
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Modelo y caché: llegan por el Volume en tiempo de ejecución
+models/
+cache/
+
+# Git, DVC y editores
+.git/
+.gitignore
+.dvc/
+.idea/
+.vscode/
+
+# Secretos y archivos de Docker
+.env
+.env.*
+Dockerfile
+.dockerignore

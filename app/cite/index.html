@@ -45,7 +45,7 @@
                 <i class="fa-solid fa-book-open-reader mr-2"></i>
                 CiteAnalyzer
             </h1>
-            <span class="text-sm font-light text-blue-200">Citation Function Classification</span>
+            <span class="text-sm font-light text-blue-200">Clasificación de la Función de Cita</span>
         </div>
     </nav>
 
@@ -55,8 +55,9 @@
             <div class="flex items-start">
                 <i class="fa-solid fa-circle-info text-blue-600 mt-1 mr-3 text-lg"></i>
                 <p class="text-slate-700 text-sm md:text-base leading-relaxed">
-                    Clasificación de la función retórica de una cita académica. Pega un contexto de cita en inglés y, opcionalmente, el párrafo del documento citado para predecir su propósito discursivo.
+                    <b>Clasificación de la función retórica de una cita académica.</b><br/>Pega o escribe una cita y su contexto en inglés y el código arXiv del artículo citado para predecir el propósito discursivo.
                 </p>
+                
             </div>
         </div>
 
@@ -66,8 +67,12 @@
             <form id="analysis-form" class="space-y-6">
                 <div>
                     <label for="citation-text" class="block text-sm font-medium text-slate-700 mb-2">
-                        Contexto de Cita (Citation Context) en Inglés:
+                        Texto de la cita en Inglés:
                     </label>
+                    <div class="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 mb-3 flex items-start">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5 mr-2"></i>
+                        <span>Debe asegurarse que el texto de la cita contenga la palabra <strong>[CITA]</strong>, que corresponde a la referencia arXiv del documento citado.</span>
+                    </div>
                     <textarea id="citation-text" rows="3" 
                         class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         required></textarea>
@@ -100,27 +105,21 @@
 
                 <div>
                     <label for="cited-paragraphs" class="block text-sm font-medium text-slate-700 mb-2">
-                        Párrafo del Documento Citado (Opcional):
+                        Código arXiv (Formato: arXiv:XXXX.XXXXX) del documento citado:
                     </label>
 
-                    <div class="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 mb-3 flex items-start">
-                        <i class="fa-solid fa-triangle-exclamation mt-0.5 mr-2"></i>
-                        <span>Si ingresa el párrafo, debe asegurarse que el "Contexto de Cita" contenga la palabra <strong>[CITATION]</strong>.</span>
-                    </div>
-
-                    <textarea id="cited-paragraphs" rows="4" 
+                    <input type="text" id="cited-paragraphs" value="arXiv:" maxlength="16"
                         class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        placeholder="Pega aquí el texto recuperado del documento citado..."></textarea>
+                        placeholder="arXiv:XXXX.XXXXX">
                 </div>
 
                 <div>
                     <label for="model-select" class="block text-sm font-medium text-slate-700 mb-2">
-                        Selecciona el Modelo Clasificador:
+                        Modelo de clasificación:
                     </label>
                     <div class="relative">
                         <select id="model-select" class="w-full md:w-1/2 p-3 bg-slate-50 border border-slate-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="bert" selected>BERT fine-tuning</option>
-                            <option value="scibert">SciBERT fine-tuning</option>
+                            <option value="scibert" selected>SciBERT fine-tuning</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 md:right-1/2 flex items-center px-4 text-slate-700">
                             <i class="fa-solid fa-chevron-down text-sm"></i>
@@ -175,6 +174,14 @@
                 </div>
 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
+                    <div id="chunks-section" class="hidden mb-6">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h2 class="text-lg font-bold text-slate-700">Párrafos más similares</h2>
+                            <span class="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded">Similitud</span>
+                        </div>
+                        <div id="chunks-container" class="space-y-3"></div>
+                    </div>
+
                     <div class="flex justify-between items-center mb-4 border-b pb-2">
                         <h2 class="text-lg font-bold text-slate-700">Distribución de Probabilidades</h2>
                         <span class="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded">Todas las categorías</span>
@@ -244,6 +251,49 @@
             const loadExampleBtn4 = document.getElementById('load-example-4');
             const loadExampleBtn5 = document.getElementById('load-example-5');
 
+            const ARXIV_PREFIX = 'arXiv:';
+
+            function formatArxivValue(raw) {
+                const withoutPrefix = raw.replace(/^arXiv:/i, '');
+                const digits = withoutPrefix.replace(/\D/g, '').slice(0, 9);
+                if (digits.length > 4) {
+                    return `${ARXIV_PREFIX}${digits.slice(0, 4)}.${digits.slice(4)}`;
+                }
+                return `${ARXIV_PREFIX}${digits}`;
+            }
+
+            citedParagraphs.addEventListener('input', () => {
+                citedParagraphs.value = formatArxivValue(citedParagraphs.value);
+            });
+
+            citedParagraphs.addEventListener('keydown', (e) => {
+                const start = citedParagraphs.selectionStart;
+                const end = citedParagraphs.selectionEnd;
+                if (e.key === 'Backspace' && start <= ARXIV_PREFIX.length && end <= ARXIV_PREFIX.length) {
+                    e.preventDefault();
+                } else if (e.key === 'ArrowLeft' && start <= ARXIV_PREFIX.length) {
+                    e.preventDefault();
+                } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    citedParagraphs.setSelectionRange(ARXIV_PREFIX.length, ARXIV_PREFIX.length);
+                }
+            });
+
+            citedParagraphs.addEventListener('focus', () => {
+                if (!citedParagraphs.value.startsWith(ARXIV_PREFIX)) {
+                    citedParagraphs.value = formatArxivValue(citedParagraphs.value);
+                }
+                if (citedParagraphs.selectionStart < ARXIV_PREFIX.length) {
+                    citedParagraphs.setSelectionRange(citedParagraphs.value.length, citedParagraphs.value.length);
+                }
+            });
+
+            citedParagraphs.addEventListener('click', () => {
+                if (citedParagraphs.selectionStart < ARXIV_PREFIX.length) {
+                    citedParagraphs.setSelectionRange(ARXIV_PREFIX.length, ARXIV_PREFIX.length);
+                }
+            });
+
             const predictedBadge = document.getElementById('predicted-badge');
             const predictedFunctionEl = document.getElementById('predicted-function');
             const predictedDescEl = document.getElementById('predicted-desc');
@@ -251,6 +301,8 @@
             const confidenceScoreEl = document.getElementById('confidence-score');
             const confidenceBarEl = document.getElementById('confidence-bar');
             const probabilitiesContainer = document.getElementById('probabilities-container');
+            const chunksSection = document.getElementById('chunks-section');
+            const chunksContainer = document.getElementById('chunks-container');
 
             const drawer = document.getElementById('function-drawer');
             const drawerOverlay = document.getElementById('function-drawer-overlay');
@@ -277,23 +329,28 @@
             const defaultColor = { badge: "bg-slate-100 text-slate-800", bar: "bg-slate-500" };
 
             loadExampleBtn1.addEventListener('click', () => {
-                citationText.value = "Despite recent advances, [CITATION] did not address the problem of long-range dependencies in low-resource settings, leaving this an open challenge that our work aims to tackle.";
+                citationText.value = "To address this issue, as many studies have suggested [CITA] leveraging a curriculum learning (CL) technique that involves the gradual introduction of data augmentation techniques.";
+                citedParagraphs.value = formatArxivValue("arXiv:1903.09848");
             });
 
             loadExampleBtn2.addEventListener('click', () => {
-                citationText.value = "Similar to the method proposed in [CITATION], we adopt a transformer-based architecture.";
+                citationText.value = "In other related work [CITA] have explored non-lexical constraints, but do not examine how these could facilitate use of grounding and external knowledge.";
+                citedParagraphs.value = formatArxivValue("arXiv:1909.05858");
             });
 
             loadExampleBtn3.addEventListener('click', () => {
-                citationText.value = "Building on the architecture introduced in [CITATION], we extend it with a sparse attention mechanism that reduces memory consumption by 40% without sacrificing accuracy.";
+                citationText.value = "Harrison tackled this; he went on to accomplish great things in formalised mathematics, including verifying a floating-point exponential function and (much later) playing a major role in verifying the celebrated Kepler conjecture [CITA].";
+                citedParagraphs.value = formatArxivValue("arXiv:1501.02155");
             });
 
             loadExampleBtn4.addEventListener('click', () => {
-                citationText.value = "The transformer architecture was first introduced by [CITATION], establishing the foundation for the self-attention mechanisms used throughout modern NLP.";
+                citationText.value = "A recent study [CITA] found that while fair ranking algorithms such as Det-Greedy help increase the exposure of minority candidates, their effectiveness is limited by the job contexts in which employers have a preference to particular genders.";
+                citedParagraphs.value = formatArxivValue("arXiv:2012.00423");
             });
 
             loadExampleBtn5.addEventListener('click', () => {
-                citationText.value = "Our results are consistent with the findings reported in [CITATION], which observed a similar drop in performance when the training corpus size fell below 10,000 samples.";
+                citationText.value = "Since the introduction of the self-attention mechanism in Transformers, it has seen incredible success in a variety of sequence modeling tasks in a variety of fields, such as machine translation, object detection, music generation [CITA] and bioinformatics.";
+                citedParagraphs.value = formatArxivValue("arXiv:2004.08483");
             });
 
             form.addEventListener('submit', async (e) => {
@@ -364,6 +421,36 @@
                 confidenceScoreEl.textContent = `${confPercent}%`;
                 confidenceBarEl.style.width = `${confPercent}%`;
                 confidenceBarEl.className = `${styling.bar} h-2.5 rounded-full`;
+
+                chunksContainer.innerHTML = '';
+                const chunks = Array.isArray(data.chunks) ? data.chunks : [];
+                chunks.forEach((chunk, index) => {
+                    const rank = index + 1;
+                    const card = document.createElement('article');
+                    card.className = 'bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-l-blue-400';
+
+                    const heading = document.createElement('div');
+                    heading.className = 'flex justify-between items-center gap-3 mb-2';
+
+                    const section = document.createElement('h3');
+                    section.className = 'text-sm font-bold text-slate-700';
+                    section.textContent = chunk[`chunk_section${rank}`] || 'Sin sección';
+
+                    const score = document.createElement('span');
+                    score.className = 'flex-shrink-0 text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded';
+
+                    const scoreValue = Number(chunk[`chunk_score${rank}`]);
+                    score.textContent = Number.isFinite(scoreValue) ? (scoreValue * 100).toFixed(2) + '%' : 'N/D';
+
+                    const text = document.createElement('p');
+                    text.className = 'text-sm text-slate-600 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap';
+                    text.textContent = chunk[`chunk_text${rank}`] || '';
+
+                    heading.append(section, score);
+                    card.append(heading, text);
+                    chunksContainer.append(card);
+                });
+                chunksSection.classList.toggle('hidden', chunks.length === 0);
 
                 const sortedProbs = Object.entries(data.all_probabilities)
                     .sort((a, b) => b[1] - a[1]);
