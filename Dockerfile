@@ -27,7 +27,7 @@ RUN pip install --upgrade pip && \
 
 # 2) App code
 COPY app ./app
-COPY run.sh ./run.sh`.
+COPY run.sh ./run.sh
 
 # 3) Folders de model y de chunk cache.
 #    The model (~440 MB) is NOT baked into the image: on Railway a Volume
