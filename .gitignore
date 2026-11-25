@@ -51,3 +51,5 @@ Thumbs.db
 # Modelo y caché: muy pesados para GitHub (límite de 100 MB por archivo)
 # models/
 # cache/
+/models
+/cache
