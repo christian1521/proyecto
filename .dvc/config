@@ -1,14 +1,6 @@
 [core]
-<<<<<<< HEAD
     remote = oracle_s3
 ['remote "oracle_s3"']
     url = s3://dvcproject-ia/citeanalyzer
     endpointurl = https://idcbmuy9t532.compat.objectstorage.us-ashburn-1.oraclecloud.com
     region = us-ashburn-1
-=======
-    remote = aws-remote
-['remote "aws-remote"']
-    url = s3://christian1521-dvcstore
-['remote "gdrive"']
-    url = gdrive://1MSaJjxz2xF-g82k5XWQnrB0js_l1w-T2
->>>>>>> f171e74fa7ec8995792c1500b49e9ce0014d988b
