@@ -1,10 +1,10 @@
 import logging
 import sys
 from types import FrameType
-from typing import List, cast
+from typing import List, Optional, cast
 
 from loguru import logger
-from pydantic import AnyHttpUrl
+from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,10 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Citation Function Classification API"
     MODEL_DIR: str = "data/model_scibert_citing_sentences"
+    api_key_nvidia: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices("API_KEY_NVIDIA", "api_key_nvidia"),
+    )
 
     model_config = SettingsConfigDict(case_sensitive=True)
 
