@@ -1,1 +1,6 @@
-
+[core]
+    remote = oracle_s3
+['remote "oracle_s3"']
+    url = s3://dvcproject-ia/citeanalyzer
+    endpointurl = https://idcbmuy9t532.compat.objectstorage.us-ashburn-1.oraclecloud.com
+    region = us-ashburn-1
