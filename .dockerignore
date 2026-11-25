@@ -6,7 +6,7 @@
 .dvc
 .dvcignore
 *.dvc
-# data/
+data/
 ./data/scibert_eda_cleaning_finetuning.ipynb
 ./data/final_labelled_citing_sentences_all.ipynb
 ./data/bert_eda_cleaning_finetuning.ipynb
