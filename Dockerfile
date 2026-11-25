@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Non-root user que ejecuta la aplicación
 RUN adduser --disabled-password --gecos '' api-user
 
-WORKDIR /opt/microproyecto
+WORKDIR /opt/proyecto
 
 # 1) Dependencias primero, así que editar código en app/ no reinstala torch
 COPY requirements.txt .
