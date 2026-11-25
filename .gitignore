@@ -38,10 +38,6 @@ env/
 .coverage
 htmlcov/
 
-# Modelo y caché: muy pesados para GitHub (límite de 100 MB por archivo)
-models/
-cache/
-
 # Secretos
 .env
 .env.*
@@ -51,3 +47,7 @@ cache/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Modelo y caché: muy pesados para GitHub (límite de 100 MB por archivo)
+# models/
+# cache/
