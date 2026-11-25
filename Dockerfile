@@ -33,13 +33,13 @@ COPY run.sh ./run.sh
 #    The model (~440 MB) is NOT baked into the image: on Railway a Volume
 #    is mounted here, and locally you mount it with -v.
 RUN mkdir -p models/scibert/final cache/chunks && \
-    chown -R api-user:api-user /opt/microproyecto
+    chown -R api-user:api-user /opt/proyecto
 
 USER api-user
 
 # Defaults; RailWay inyecta PORT
-ENV MODEL_DIR=/opt/microproyecto/models/scibert/final \
-    CACHE_DIR=/opt/microproyecto/cache/chunks \
+ENV MODEL_DIR=/opt/proyecto/models/scibert/final \
+    CACHE_DIR=/opt/proyecto/cache/chunks \
     MAX_LENGTH=128 \
     PORT=8001
 
