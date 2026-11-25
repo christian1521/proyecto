@@ -55,7 +55,7 @@
             <div class="flex items-start">
                 <i class="fa-solid fa-circle-info text-blue-600 mt-1 mr-3 text-lg"></i>
                 <p class="text-slate-700 text-sm md:text-base leading-relaxed">
-                    <b>Clasificación de la función retórica de una cita académica.</b><br/>Pega o escribe una cita y su contexto en inglés y el código arXiv del artículo citado para predecir el propósito discursivo.
+                    <b>Clasificación de la función retórica de una cita académica.</b><br/>Para probar la herramienta, haga clic en los enlaces situados en la esquina inferior derecha del campo de la cita; estos cargarán los ejemplos para predecir la función de cita.
                 </p>
                 
             </div>
@@ -108,7 +108,9 @@
                         Código arXiv (Formato: arXiv:XXXX.XXXXX) del documento citado:
                     </label>
 
-                    <input type="text" id="cited-paragraphs" value="arXiv:" maxlength="16"
+                    <input type="text" id="cited-paragraphs" value="" maxlength="16"
+                        pattern="arXiv:[0-9]{4}\.[0-9]{4,5}"
+                        title="Ingresa un código con el formato arXiv:XXXX.XXXXX."
                         class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         placeholder="arXiv:XXXX.XXXXX">
                 </div>
@@ -119,12 +121,22 @@
                     </label>
                     <div class="relative">
                         <select id="model-select" class="w-full md:w-1/2 p-3 bg-slate-50 border border-slate-300 rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="scibert" selected>SciBERT fine-tuning</option>
+                            <option value="scibert" selected>Encoder SciBERT (fine-tuning)</option>
+                            <option value="gemma3">Modelo Gemma 3 (12B)</option>
+                            <option value="nvidia_nemotron_3_ultra_550b_a55b">Modelo Nemotron 3 Ultra 550B (NVIDIA API)</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 md:right-1/2 flex items-center px-4 text-slate-700">
                             <i class="fa-solid fa-chevron-down text-sm"></i>
                         </div>
                     </div>
+                </div>
+
+                <div class="mt-3 flex items-center">
+                    <input type="checkbox" id="use-chunks" checked
+                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                    <label for="use-chunks" class="ml-2 text-sm text-slate-700">
+                        Con párrafos (chunks)
+                    </label>
                 </div>
 
                 <div class="flex items-center">
@@ -183,10 +195,10 @@
                     </div>
 
                     <div class="flex justify-between items-center mb-4 border-b pb-2">
-                        <h2 class="text-lg font-bold text-slate-700">Distribución de Probabilidades</h2>
-                        <span class="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded">Todas las categorías</span>
+                        <h2 id="probabilities-title" class="text-lg font-bold text-slate-700">Distribución de Probabilidades</h2>
+                        <span id="probabilities-description" class="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded">Todas las categorías</span>
                     </div>
-                    <p class="text-xs text-slate-400 mb-3">
+                    <p id="probabilities-help" class="text-xs text-slate-400 mb-3">
                         <i class="fa-solid fa-hand-pointer mr-1"></i>
                         Haz clic en el nombre de una función para ver su definición y criterio.
                     </p>
@@ -245,6 +257,7 @@
             const citationText = document.getElementById('citation-text');
             const citedParagraphs = document.getElementById('cited-paragraphs');
             const modelSelect = document.getElementById('model-select');
+            const useChunksCheckbox = document.getElementById('use-chunks');
             const loadExampleBtn1 = document.getElementById('load-example-1');
             const loadExampleBtn2 = document.getElementById('load-example-2');
             const loadExampleBtn3 = document.getElementById('load-example-3');
@@ -256,43 +269,69 @@
             function formatArxivValue(raw) {
                 const withoutPrefix = raw.replace(/^arXiv:/i, '');
                 const digits = withoutPrefix.replace(/\D/g, '').slice(0, 9);
+                if (!digits) return '';
                 if (digits.length > 4) {
                     return `${ARXIV_PREFIX}${digits.slice(0, 4)}.${digits.slice(4)}`;
                 }
                 return `${ARXIV_PREFIX}${digits}`;
             }
 
+            function updateChunksCheckbox() {
+                const hasValidArxivId = /^arXiv:[0-9]{4}\.[0-9]{4,5}$/i.test(
+                    citedParagraphs.value.trim()
+                );
+                const wasDisabled = useChunksCheckbox.disabled;
+                useChunksCheckbox.disabled = !hasValidArxivId;
+                if (hasValidArxivId && wasDisabled) {
+                    useChunksCheckbox.checked = true;
+                } else if (!hasValidArxivId) {
+                    useChunksCheckbox.checked = false;
+                }
+            }
+
+            function setCitedParagraphs(value) {
+                citedParagraphs.value = formatArxivValue(value);
+                updateChunksCheckbox();
+            }
+
             citedParagraphs.addEventListener('input', () => {
                 citedParagraphs.value = formatArxivValue(citedParagraphs.value);
+                updateChunksCheckbox();
             });
 
             citedParagraphs.addEventListener('keydown', (e) => {
                 const start = citedParagraphs.selectionStart;
                 const end = citedParagraphs.selectionEnd;
-                if (e.key === 'Backspace' && start <= ARXIV_PREFIX.length && end <= ARXIV_PREFIX.length) {
+                const hasPrefix = citedParagraphs.value.startsWith(ARXIV_PREFIX);
+                if (hasPrefix && e.key === 'Backspace' && start <= ARXIV_PREFIX.length && end <= ARXIV_PREFIX.length) {
                     e.preventDefault();
-                } else if (e.key === 'ArrowLeft' && start <= ARXIV_PREFIX.length) {
+                } else if (hasPrefix && e.key === 'ArrowLeft' && start <= ARXIV_PREFIX.length) {
                     e.preventDefault();
                 } else if (e.key === 'Home') {
                     e.preventDefault();
-                    citedParagraphs.setSelectionRange(ARXIV_PREFIX.length, ARXIV_PREFIX.length);
+                    const position = hasPrefix ? ARXIV_PREFIX.length : 0;
+                    citedParagraphs.setSelectionRange(position, position);
                 }
             });
 
             citedParagraphs.addEventListener('focus', () => {
-                if (!citedParagraphs.value.startsWith(ARXIV_PREFIX)) {
+                if (citedParagraphs.value && !citedParagraphs.value.startsWith(ARXIV_PREFIX)) {
                     citedParagraphs.value = formatArxivValue(citedParagraphs.value);
                 }
-                if (citedParagraphs.selectionStart < ARXIV_PREFIX.length) {
+                if (citedParagraphs.value.startsWith(ARXIV_PREFIX)
+                    && citedParagraphs.selectionStart < ARXIV_PREFIX.length) {
                     citedParagraphs.setSelectionRange(citedParagraphs.value.length, citedParagraphs.value.length);
                 }
             });
 
             citedParagraphs.addEventListener('click', () => {
-                if (citedParagraphs.selectionStart < ARXIV_PREFIX.length) {
+                if (citedParagraphs.value.startsWith(ARXIV_PREFIX)
+                    && citedParagraphs.selectionStart < ARXIV_PREFIX.length) {
                     citedParagraphs.setSelectionRange(ARXIV_PREFIX.length, ARXIV_PREFIX.length);
                 }
             });
+
+            updateChunksCheckbox();
 
             const predictedBadge = document.getElementById('predicted-badge');
             const predictedFunctionEl = document.getElementById('predicted-function');
@@ -303,6 +342,9 @@
             const probabilitiesContainer = document.getElementById('probabilities-container');
             const chunksSection = document.getElementById('chunks-section');
             const chunksContainer = document.getElementById('chunks-container');
+            const probabilitiesTitle = document.getElementById('probabilities-title');
+            const probabilitiesDescription = document.getElementById('probabilities-description');
+            const probabilitiesHelp = document.getElementById('probabilities-help');
 
             const drawer = document.getElementById('function-drawer');
             const drawerOverlay = document.getElementById('function-drawer-overlay');
@@ -329,28 +371,28 @@
             const defaultColor = { badge: "bg-slate-100 text-slate-800", bar: "bg-slate-500" };
 
             loadExampleBtn1.addEventListener('click', () => {
-                citationText.value = "To address this issue, as many studies have suggested [CITA] leveraging a curriculum learning (CL) technique that involves the gradual introduction of data augmentation techniques.";
-                citedParagraphs.value = formatArxivValue("arXiv:1903.09848");
+                citationText.value = "In other related work [CITA] have explored non-lexical constraints, but do not examine how these could facilitate use of grounding and external knowledge.";
+                setCitedParagraphs("arXiv:1909.05858");
             });
 
             loadExampleBtn2.addEventListener('click', () => {
-                citationText.value = "In other related work [CITA] have explored non-lexical constraints, but do not examine how these could facilitate use of grounding and external knowledge.";
-                citedParagraphs.value = formatArxivValue("arXiv:1909.05858");
+                citationText.value = "To address this issue, as many studies have suggested [CITA] leveraging a curriculum learning (CL) technique that involves the gradual introduction of data augmentation techniques.";
+                setCitedParagraphs("arXiv:1903.09848");
             });
 
             loadExampleBtn3.addEventListener('click', () => {
                 citationText.value = "Harrison tackled this; he went on to accomplish great things in formalised mathematics, including verifying a floating-point exponential function and (much later) playing a major role in verifying the celebrated Kepler conjecture [CITA].";
-                citedParagraphs.value = formatArxivValue("arXiv:1501.02155");
+                setCitedParagraphs("arXiv:1501.02155");
             });
 
             loadExampleBtn4.addEventListener('click', () => {
                 citationText.value = "A recent study [CITA] found that while fair ranking algorithms such as Det-Greedy help increase the exposure of minority candidates, their effectiveness is limited by the job contexts in which employers have a preference to particular genders.";
-                citedParagraphs.value = formatArxivValue("arXiv:2012.00423");
+                setCitedParagraphs("arXiv:2012.00423");
             });
 
             loadExampleBtn5.addEventListener('click', () => {
                 citationText.value = "Since the introduction of the self-attention mechanism in Transformers, it has seen incredible success in a variety of sequence modeling tasks in a variety of fields, such as machine translation, object detection, music generation [CITA] and bioinformatics.";
-                citedParagraphs.value = formatArxivValue("arXiv:2004.08483");
+                setCitedParagraphs("arXiv:2004.08483");
             });
 
             form.addEventListener('submit', async (e) => {
@@ -368,7 +410,8 @@
                 const payload = {
                     citing_sentence: citationText.value,
                     type_model: modelSelect.value,
-                    cited_paragraphs: citedParagraphs.value || ""
+                    cited_paragraphs: citedParagraphs.value || "",
+                    use_chunks: useChunksCheckbox.checked
                 };
 
                 try {
@@ -452,10 +495,19 @@
                 });
                 chunksSection.classList.toggle('hidden', chunks.length === 0);
 
-                const sortedProbs = Object.entries(data.all_probabilities)
-                    .sort((a, b) => b[1] - a[1]);
-
                 probabilitiesContainer.innerHTML = '';
+                if (data.model_name) {
+                    probabilitiesTitle.textContent = `Confianza de ${data.model_name}`;
+                    probabilitiesDescription.textContent = 'Sin probabilidades por categoría';
+                    probabilitiesHelp.textContent = `${data.model_name} devuelve una única confianza, no una distribución de probabilidad por categoría.`;
+                } else {
+                    probabilitiesTitle.textContent = 'Distribución de Probabilidades';
+                    probabilitiesDescription.textContent = 'Todas las categorías';
+                    probabilitiesHelp.innerHTML = '<i class="fa-solid fa-hand-pointer mr-1"></i> Haz clic en el nombre de una función para ver su definición y criterio.';
+                }
+
+                const sortedProbs = Object.entries(data.all_probabilities || {})
+                    .sort((a, b) => b[1] - a[1]);
                 
                 sortedProbs.forEach(([funcName, probValue]) => {
                     const probPercent = (probValue * 100).toFixed(2);
