@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -23,7 +23,6 @@ logger = logging.getLogger("citation_api")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-MODEL_DIR_SCIBERT = BASE_DIR / "models" / "scibert"
 CACHE_CHUNKS_DIR = BASE_DIR / "cache" / "chunks"
 CACHE_CHUNKS_ARCHIVE = BASE_DIR / "cache" / "chunks.tar.gz"
 SPECTER2_BASE_MODEL = "allenai/specter2_base"
@@ -68,6 +67,21 @@ class ModelServiceError(RuntimeError):
         self.status_code = status_code
 
 
+def _get_scibert_model_dir() -> Path:
+    configured_dir = os.environ.get("MODEL_DIR")
+    if configured_dir:
+        return Path(configured_dir)
+    return BASE_DIR / "models" / "scibert"
+
+
+def _get_cache_paths() -> Tuple[Path, Path]:
+    configured_dir = os.environ.get("CACHE_DIR")
+    if configured_dir:
+        cache_dir = Path(configured_dir)
+        return cache_dir, cache_dir.parent / CACHE_CHUNKS_ARCHIVE.name
+    return CACHE_CHUNKS_DIR, CACHE_CHUNKS_ARCHIVE
+
+
 def _normalize_arxiv_id(cited_paragraphs: Optional[str]) -> Optional[str]:
     if not cited_paragraphs:
         return None
@@ -101,8 +115,8 @@ def _read_chunk_cache_file(arxiv_id: str, suffix: str) -> Optional[bytes]:
     global _chunks_archive, _chunks_archive_path
 
     filename = f"{arxiv_id}.{suffix}"
-    if CACHE_CHUNKS_ARCHIVE.is_file():
-        archive_path = CACHE_CHUNKS_ARCHIVE
+    cache_dir, archive_path = _get_cache_paths()
+    if archive_path.is_file():
         with _chunks_archive_lock:
             if _chunks_archive is None or _chunks_archive_path != archive_path:
                 if _chunks_archive is not None:
@@ -113,7 +127,7 @@ def _read_chunk_cache_file(arxiv_id: str, suffix: str) -> Optional[bytes]:
                     _chunks_archive = None
                     _chunks_archive_path = None
                     raise ValueError(
-                        "No se pudo abrir el archivo de caché 'cache/chunks.tar.gz'."
+                        f"No se pudo abrir el archivo de caché '{archive_path}'."
                     ) from error
                 _chunks_archive_path = archive_path
 
@@ -137,11 +151,11 @@ def _read_chunk_cache_file(arxiv_id: str, suffix: str) -> Optional[bytes]:
                             return member_file.read()
             except (OSError, EOFError, tarfile.TarError) as error:
                 raise ValueError(
-                    f"No se pudo leer '{filename}' dentro de 'cache/chunks.tar.gz'."
+                    f"No se pudo leer '{filename}' dentro de '{archive_path}'."
                 ) from error
         return None
 
-    chunks_path = CACHE_CHUNKS_DIR / filename
+    chunks_path = cache_dir / filename
     if chunks_path.is_file():
         return chunks_path.read_bytes()
     return None
@@ -704,19 +718,20 @@ def _load_model_if_needed():
         import torch
         from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-        if not (MODEL_DIR_SCIBERT / "config.json").exists():
-            raise FileNotFoundError(f"No se encontró 'config.json' en {MODEL_DIR_SCIBERT}.")
+        model_dir = _get_scibert_model_dir()
+        if not (model_dir / "config.json").exists():
+            raise FileNotFoundError(f"No se encontró 'config.json' en {model_dir}.")
 
         _device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        logger.info(f"Cargando modelo desde: {MODEL_DIR_SCIBERT}")
+        logger.info(f"Cargando modelo desde: {model_dir}")
 
-        _tokenizer_scibert = AutoTokenizer.from_pretrained(str(MODEL_DIR_SCIBERT))
-        _model_scibert = AutoModelForSequenceClassification.from_pretrained(str(MODEL_DIR_SCIBERT))
+        _tokenizer_scibert = AutoTokenizer.from_pretrained(str(model_dir))
+        _model_scibert = AutoModelForSequenceClassification.from_pretrained(str(model_dir))
         _model_scibert.to(_device)
         _model_scibert.eval()
 
-        label_mapping_path = MODEL_DIR_SCIBERT / "label_mapping.json"
+        label_mapping_path = model_dir / "label_mapping.json"
         if label_mapping_path.exists():
             with open(label_mapping_path, "r", encoding="utf-8") as f:
                 _id2label_scibert = {int(k): v for k, v in json.load(f)["id2label"].items()}
