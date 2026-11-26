@@ -1,6 +1,7 @@
 from pathlib import Path
 import io
 import json
+import logging
 import tarfile
  
 import numpy as np
@@ -216,7 +217,7 @@ def test_bert_model_is_not_supported(monkeypatch) -> None:
         predict(citing_sentence="A citation sentence.", type_model="bert")
 
 
-def test_scibert_citation_marker_matches_training_format(monkeypatch) -> None:
+def test_scibert_citation_marker_matches_training_format(monkeypatch, caplog) -> None:
     captured_context = []
 
     class FakeModel:
@@ -243,14 +244,17 @@ def test_scibert_citation_marker_matches_training_format(monkeypatch) -> None:
         ),
     )
 
-    predict(
-        citing_sentence="The cited work supports the result [CITA].",
-        type_model="scibert",
-    )
+    with caplog.at_level(logging.INFO, logger="citation_api"):
+        predict(
+            citing_sentence="The cited work supports the result [CITA].",
+            type_model="scibert",
+        )
 
     assert captured_context == [
         "The cited work supports the result #CITATION_TAG."
     ]
+    assert "prediction_timing model=scibert" in caplog.text
+    assert "after_models_ready=" in caplog.text
 
 
 def test_scibert_can_classify_without_chunks(monkeypatch) -> None:

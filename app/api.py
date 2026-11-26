@@ -6,6 +6,7 @@ import logging
 import re
 import tarfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from functools import lru_cache
@@ -889,6 +890,7 @@ def predict(
     cited_paragraphs: Optional[str] = None,
     use_chunks: bool = True,
 ) -> dict:
+    request_started = time.perf_counter()
 
     arxiv_id = _normalize_arxiv_id(cited_paragraphs)
     if use_chunks and arxiv_id and "[CITA]" not in citing_sentence:
@@ -903,23 +905,71 @@ def predict(
             "o 'nvidia_nemotron_3_ultra_550b_a55b'."
         )
 
-    cited_chunks = _load_cited_chunks(arxiv_id) if use_chunks else []
+    chunks_cache_state = "skipped"
+    chunks_cache_seconds = 0.0
+    cited_chunks = []
+    if use_chunks:
+        cache_before = _load_cited_chunks.cache_info()
+        cache_started = time.perf_counter()
+        cited_chunks = _load_cited_chunks(arxiv_id)
+        chunks_cache_seconds = time.perf_counter() - cache_started
+        cache_after = _load_cited_chunks.cache_info()
+        chunks_cache_state = (
+            "hit" if cache_after.hits > cache_before.hits else "miss"
+        )
+
     text_to_classify = (
         citing_sentence.replace("[CITA]", "#CITATION_TAG")
         if type_model == "scibert"
         else citing_sentence
     )
 
+    scibert_model_cache = "skipped"
+    scibert_model_load_seconds = 0.0
     if type_model == "scibert":
+        scibert_model_cache = (
+            "hit" if _model_scibert is not None else "miss"
+        )
+        model_load_started = time.perf_counter()
         _load_model_if_needed()
+        scibert_model_load_seconds = time.perf_counter() - model_load_started
         _tokenizer = _tokenizer_scibert
         _model = _model_scibert
         _id2label = _id2label_scibert
 
     ranked_chunks = []
+    embeddings_cache_state = "skipped"
+    embeddings_cache_seconds = 0.0
+    embeddings_source = "skipped"
+    specter2_model_cache = "skipped"
+    specter2_model_load_seconds = 0.0
+    ranking_seconds = 0.0
     if cited_chunks:
+        cache_before = _load_chunk_embeddings.cache_info()
+        cache_started = time.perf_counter()
         chunk_embeddings = _load_chunk_embeddings(arxiv_id, len(cited_chunks))
+        embeddings_cache_seconds = time.perf_counter() - cache_started
+        cache_after = _load_chunk_embeddings.cache_info()
+        embeddings_cache_state = (
+            "hit" if cache_after.hits > cache_before.hits else "miss"
+        )
+        embeddings_source = (
+            "precomputed_npy"
+            if chunk_embeddings is not None
+            else "recompute_chunk_embeddings"
+        )
+
+        specter2_model_cache = (
+            "hit" if _model_specter2 is not None else "miss"
+        )
+        model_load_started = time.perf_counter()
         _load_specter2_if_needed()
+        specter2_model_load_seconds = time.perf_counter() - model_load_started
+
+    models_ready_at = time.perf_counter()
+
+    if cited_chunks:
+        ranking_started = time.perf_counter()
         ranked_chunks = _rank_cited_chunks(
             citing_sentence,
             cited_chunks,
@@ -928,6 +978,7 @@ def predict(
             _model_specter2,
             _device,
         )
+        ranking_seconds = time.perf_counter() - ranking_started
 
     chunks_result = [
         {
@@ -950,16 +1001,20 @@ def predict(
 
     import torch
 
+    input_started = time.perf_counter()
     inputs = _build_scibert_inputs(
         text_to_classify,
         ranked_chunks,
         _tokenizer,
         _device,
     )
+    input_seconds = time.perf_counter() - input_started
 
+    inference_started = time.perf_counter()
     with torch.no_grad():
         outputs = _model(**inputs)
         probs = torch.softmax(outputs.logits, dim=-1).squeeze(0)
+    inference_seconds = time.perf_counter() - inference_started
 
     pred_id = int(torch.argmax(probs).item())
     predicted_label = _id2label[pred_id]
@@ -978,6 +1033,32 @@ def predict(
     if citation_info is not None:
         result["definition"] = citation_info.definition
         result["criteria"] = citation_info.criteria
+
+    logger.info(
+        "prediction_timing model=%s device=%s chunks=%d "
+        "chunks_cache=%s:%.3fs embeddings_cache=%s:%.3fs "
+        "embedding_source=%s scibert_model_cache=%s:%.3fs "
+        "specter2_model_cache=%s:%.3fs ranking=%.3fs "
+        "scibert_input=%.3fs scibert_inference=%.3fs "
+        "after_models_ready=%.3fs total=%.3fs",
+        type_model,
+        _device,
+        len(cited_chunks),
+        chunks_cache_state,
+        chunks_cache_seconds,
+        embeddings_cache_state,
+        embeddings_cache_seconds,
+        embeddings_source,
+        scibert_model_cache,
+        scibert_model_load_seconds,
+        specter2_model_cache,
+        specter2_model_load_seconds,
+        ranking_seconds,
+        input_seconds,
+        inference_seconds,
+        time.perf_counter() - models_ready_at,
+        time.perf_counter() - request_started,
+    )
 
     return result
 
