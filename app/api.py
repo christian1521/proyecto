@@ -32,6 +32,8 @@ SPECTER2_MAX_LENGTH = 512
 GEMMA3_MODEL = "gemma3:4b"
 GEMMA3_API_URL = os.environ.get("GEMMA3_API_URL", "http://localhost:11434/api/generate")
 GEMMA3_TIMEOUT_SECONDS = 120
+GEMMA3_NUM_CTX = int(os.environ.get("GEMMA3_NUM_CTX", "4096"))
+GEMMA3_NUM_THREAD = int(os.environ.get("GEMMA3_NUM_THREAD", "8"))
 # $env:API_KEY_NVIDIA="nvapi-XXX"
 # export API_KEY_NVIDIA="nvapi-XXX"
 NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
@@ -560,7 +562,11 @@ def _classify_with_gemma3(
             "prompt": _build_gemma3_prompt(citing_sentence, ranked_chunks),
             "stream": False,
             "format": "json",
-            "options": {"temperature": 0},
+            "options": {
+                "temperature": 0,
+                "num_ctx": GEMMA3_NUM_CTX,
+                "num_thread": GEMMA3_NUM_THREAD,
+            },
         }
     ).encode("utf-8")
     request = urllib.request.Request(

@@ -473,6 +473,8 @@ def test_scibert_input_matches_finetuning_sequence(monkeypatch) -> None:
 def test_gemma3_prompt_and_response_use_catalog_categories(monkeypatch) -> None:
     captured_request = {}
     category = "Evidence"
+    monkeypatch.setattr(api_module, "GEMMA3_NUM_CTX", 3072)
+    monkeypatch.setattr(api_module, "GEMMA3_NUM_THREAD", 6)
     response_body = json.dumps(
         {
             "response": json.dumps(
@@ -534,10 +536,15 @@ def test_gemma3_prompt_and_response_use_catalog_categories(monkeypatch) -> None:
     assert result["confidence"] == 0.82
     assert result["all_probabilities"] == {}
     assert result["model_name"] == "Gemma 3"
-    assert captured_request["body"]["model"] == "gemma3:12b"
+    assert captured_request["body"]["model"] == api_module.GEMMA3_MODEL
     assert "Name: Evidence" in captured_request["body"]["prompt"]
     assert "This supports our findings [CITA]." in captured_request["body"]["prompt"]
     assert captured_request["body"]["format"] == "json"
+    assert captured_request["body"]["options"] == {
+        "temperature": 0,
+        "num_ctx": 3072,
+        "num_thread": 6,
+    }
     prompt = captured_request["body"]["prompt"]
     assert "Section: Results\nText: The method improved the measured outcome." in prompt
     assert "Section: Discussion\nText: The findings support the hypothesis." in prompt
