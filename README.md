@@ -26,13 +26,13 @@ Se contemplan estos componentes para crear una solución completa para el usuari
 | Código | <https://github.com/christian1521/proyecto> |
 | Tablero | <https://cite-api-production.up.railway.app/cite/> |
 | API | <https://cite-api-production.up.railway.app/docs/> |
-| Docker | `docker pull ghcr.io/christian1521/cite-proyecto-grupo26:v0.3` |
+| Docker | `docker pull ghcr.io/christian1521/cite-proyecto-grupo26:v0.93` |
 
 ### Inicio rápido
 
 ```bash
-docker pull ghcr.io/christian1521/cite-proyecto-grupo26:v0.3
-docker run -d -p 8001:8001 -e PORT=8001 christian1521/cite-proyecto-grupo26:v0.3
+docker pull ghcr.io/christian1521/cite-proyecto-grupo26:v0.93
+docker run -d -p 8001:8001 -e PORT=8001 christian1521/cite-proyecto-grupo26:v0.93
 # http://localhost:8001/cite/
 ```
 
