@@ -1,51 +1,76 @@
 FROM python:3.14-slim
-# Un contenedor sirve ambas partes del proyecto a través de un solo uvicorn.
-#   - API       (app/api.py)  -> /api/v1/...  (FastAPI + SciBERT)
-#   - Dashboard (app/cite/)   -> /cite/       (app/main.py)
+# Un contenedor, dos procesos (sin Volumes):
+#   - Ollama  (gemma3:4b)       -> 127.0.0.1:11434 (interno)
+#   - uvicorn (API + Dashboard) -> $PORT
+#       API       (app/api.py)  -> /api/v1/...  (FastAPI + SciBERT)
+#       Dashboard (app/cite/)   -> /cite/       (app/main.py)
 
-# Python comportamiento dentro de los contenedores
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Herramientas build, solo en caso de dependencia que no tenga una wheel precompilada 3.14
+# Build tools por si alguna dependencia no tiene wheel 3.14; curl/zstd/procps para Ollama
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
+    build-essential curl ca-certificates zstd procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Non-root user que ejecuta la aplicación
-RUN adduser --disabled-password --gecos '' api-user
+# Instalar Ollama (sh en /usr/local/bin/ollama) — como root
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Non-root user + carpeta del proyecto (como root, ANTES de USER)
+RUN adduser --disabled-password --gecos '' api-user && \
+    mkdir -p /opt/proyecto/models/ollama && \
+    chown -R api-user:api-user /opt/proyecto
 
 WORKDIR /opt/proyecto
+USER api-user
+ENV PATH=/home/api-user/.local/bin:$PATH
 
-# 1) Dependencias primero, así que editar código en app/ no reinstala torch
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir \
+# 1) Modelo gemma DENTRO de la imagen (capa pesada, se cachea)
+ENV MAX_LENGTH=512 \
+    WEB_CONCURRENCY=1 \
+    OMP_NUM_THREADS=8 \
+    MKL_NUM_THREADS=8 \
+    PRELOAD_MODELS=true \
+    TOKENIZERS_PARALLELISM=false
+
+ENV GEMMA3_MODEL=gemma3:4b \
+    OLLAMA_MODEL=gemma3:4b \
+    OLLAMA_HOST=127.0.0.1:11434 \
+    OLLAMA_MODELS=/opt/proyecto/models/ollama \
+    OLLAMA_CONTEXT_LENGTH=8192 \
+    OLLAMA_NUM_PARALLEL=1 \
+    OLLAMA_FLASH_ATTENTION=1 \
+    OLLAMA_MAX_QUEUE=8 \
+    OLLAMA_KV_CACHE_TYPE=q8_0 \
+    OLLAMA_KEEP_ALIVE=24h
+
+
+RUN ollama serve & \
+    for i in $(seq 1 60); do curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 0.5; done && \
+    ollama pull ${OLLAMA_MODEL} && \
+    ollama list | grep -q "${OLLAMA_MODEL%%:*}" && \
+    (pkill ollama || true)
+
+
+# 2) Dependencias Python (una sola vez, con --user)
+COPY --chown=api-user:api-user requirements.txt .
+
+RUN pip install --no-cache-dir --user --upgrade pip && \
+    pip install --no-cache-dir --user \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
-# 2) App code
-COPY app ./app
-COPY run.sh ./run.sh
-COPY models ./models
-COPY cache ./cache
+# 3) Modelos SciBERT, cache y código (todo dentro de la imagen)
+COPY --chown=api-user:api-user models/scibert ./models/scibert
+COPY --chown=api-user:api-user app ./app
+COPY --chown=api-user:api-user run.sh ./run.sh
+ADD  --chown=api-user:api-user cache/chunks.tar.gz ./cache/
 
-# 3) Folders de model y de chunk cache.
-#    The model (~440 MB) is NOT baked into the image: on Railway a Volume
-#    is mounted here, and locally you mount it with -v.
-# RUN mkdir -p models/scibert cache/chunks && \
-
-RUN  chown -R api-user:api-user /opt/proyecto
-
-USER api-user
-
-# Defaults; RailWay inyecta PORT
+# Defaults; Railway inyecta PORT
 ENV MODEL_DIR=/opt/proyecto/models/scibert \
     CACHE_DIR=/opt/proyecto/cache/chunks \
-    MAX_LENGTH=128 \
     PORT=8001
-
 
 EXPOSE 8001
 
