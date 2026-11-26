@@ -18,6 +18,21 @@ MODEL_DIR_SCIBERT_AVAILABLE = BASE_DIR / "models" / "scibert" / "final"
 CACHED_DOCUMENT_AVAILABLE = BASE_DIR / "cache" / "chunks" / "0706.3639.json"
 CACHED_EMBEDDINGS_AVAILABLE = BASE_DIR / "cache" / "chunks" / "0706.3639.npy"
 
+
+def test_scibert_model_dir_uses_model_dir_environment_variable(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("MODEL_DIR", str(tmp_path))
+
+    assert api_module._get_scibert_model_dir() == tmp_path
+
+
+def test_scibert_model_dir_defaults_to_workspace_model_folder(monkeypatch) -> None:
+    monkeypatch.delenv("MODEL_DIR", raising=False)
+
+    assert api_module._get_scibert_model_dir() == BASE_DIR / "models" / "scibert"
+
+
 @pytest.mark.skipif(
     not MODEL_DIR_SCIBERT_AVAILABLE.exists()
     or not CACHED_DOCUMENT_AVAILABLE.exists()
@@ -76,6 +91,7 @@ def test_make_prediction(test_data: pd.DataFrame) -> None:
 def test_chunk_cache_can_be_read_from_tar_gz(monkeypatch, tmp_path) -> None:
     arxiv_id = "9999.99999"
     archive_path = tmp_path / "cache" / "chunks.tar.gz"
+    cache_dir = archive_path.parent / "chunks"
     archive_path.parent.mkdir()
     document = {
         "ranker": "allenai/specter2_base|allenai/specter2",
@@ -94,8 +110,7 @@ def test_chunk_cache_can_be_read_from_tar_gz(monkeypatch, tmp_path) -> None:
             member.size = len(contents)
             archive.addfile(member, io.BytesIO(contents))
 
-    monkeypatch.setattr(api_module, "CACHE_CHUNKS_ARCHIVE", archive_path)
-    monkeypatch.setattr(api_module, "CACHE_CHUNKS_DIR", tmp_path / "unpacked")
+    monkeypatch.setenv("CACHE_DIR", str(cache_dir))
 
     try:
         chunks = api_module._load_cited_chunks(arxiv_id)
@@ -111,6 +126,19 @@ def test_chunk_cache_can_be_read_from_tar_gz(monkeypatch, tmp_path) -> None:
         }
     ]
     np.testing.assert_array_equal(loaded_embeddings, embedding)
+
+
+def test_chunk_cache_directory_uses_cache_dir_environment_variable(
+    monkeypatch, tmp_path
+) -> None:
+    arxiv_id = "9997.77777"
+    cache_dir = tmp_path / "mounted_chunks"
+    cache_dir.mkdir()
+    chunk_bytes = b'{"chunks":[]}'
+    (cache_dir / f"{arxiv_id}.json").write_bytes(chunk_bytes)
+    monkeypatch.setenv("CACHE_DIR", str(cache_dir))
+
+    assert api_module._read_chunk_cache_file(arxiv_id, "json") == chunk_bytes
 
 
 def test_chunk_data_is_cached_in_memory(monkeypatch) -> None:
