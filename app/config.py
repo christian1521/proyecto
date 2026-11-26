@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Citation Function Classification API"
     MODEL_DIR: str = "data/model_scibert_citing_sentences"
+    PRELOAD_MODELS: bool = False
     api_key_nvidia: Optional[SecretStr] = Field(
         default=None,
         validation_alias=AliasChoices("API_KEY_NVIDIA", "api_key_nvidia"),
@@ -58,7 +59,9 @@ def setup_app_logging(config: Settings) -> None:
     """Prepare custom logging for our application."""
 
     LOGGERS = ("uvicorn.asgi", "uvicorn.access")
-    logging.getLogger().handlers = [InterceptHandler()]
+    root_logger = logging.getLogger()
+    root_logger.handlers = [InterceptHandler()]
+    root_logger.setLevel(config.logging.LOGGING_LEVEL)
     for logger_name in LOGGERS:
         logging_logger = logging.getLogger(logger_name)
         logging_logger.handlers = [InterceptHandler(level=config.logging.LOGGING_LEVEL)]

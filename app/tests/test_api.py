@@ -9,8 +9,10 @@ import pandas as pd
 import pytest
 import torch
 from pydantic import SecretStr
+from fastapi.testclient import TestClient
  
 from app import api as api_module
+from app import main as main_module
 from app.api import predict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -32,6 +34,138 @@ def test_scibert_model_dir_defaults_to_workspace_model_folder(monkeypatch) -> No
     monkeypatch.delenv("MODEL_DIR", raising=False)
 
     assert api_module._get_scibert_model_dir() == BASE_DIR / "models" / "scibert"
+
+
+def test_app_logging_allows_info_level_messages() -> None:
+    assert logging.getLogger().getEffectiveLevel() == main_module.settings.logging.LOGGING_LEVEL
+
+
+def test_preload_models_loads_all_model_services(monkeypatch) -> None:
+    loaded_models = []
+    monkeypatch.setattr(
+        api_module,
+        "_warmup_scibert",
+        lambda: loaded_models.append("SciBERT"),
+    )
+    monkeypatch.setattr(
+        api_module,
+        "_warmup_specter2",
+        lambda: loaded_models.append("SPECTER2"),
+    )
+    monkeypatch.setattr(
+        api_module,
+        "_preload_gemma3",
+        lambda: loaded_models.append("Gemma 3"),
+    )
+
+    api_module.preload_models()
+
+    assert loaded_models == ["SciBERT", "SPECTER2", "Gemma 3"]
+
+
+def test_scibert_warmup_runs_model_inference(monkeypatch, caplog) -> None:
+    captured = {}
+
+    class FakeModel:
+        def __call__(self, **inputs):
+            captured["inputs"] = inputs
+
+    monkeypatch.setattr(api_module, "_load_model_if_needed", lambda: None)
+    monkeypatch.setattr(api_module, "_tokenizer_scibert", object())
+    monkeypatch.setattr(api_module, "_model_scibert", FakeModel())
+    monkeypatch.setattr(api_module, "_device", "cpu")
+    monkeypatch.setattr(
+        api_module,
+        "_build_scibert_inputs",
+        lambda context, chunks, *_args: captured.update(
+            context=context,
+            chunks=chunks,
+        )
+        or {"input_ids": torch.tensor([[1]])},
+    )
+
+    with caplog.at_level(logging.INFO, logger="citation_api"):
+        api_module._warmup_scibert()
+
+    assert captured["context"] == "Warm-up citation #CITATION_TAG."
+    assert len(captured["chunks"]) == 1
+    assert "inputs" in captured
+    assert "Ejemplo SciBERT" in caplog.text
+
+
+def test_specter2_warmup_encodes_a_sentence(monkeypatch, caplog) -> None:
+    captured = {}
+    monkeypatch.setattr(api_module, "_load_specter2_if_needed", lambda: None)
+    monkeypatch.setattr(api_module, "_tokenizer_specter2", object())
+    monkeypatch.setattr(api_module, "_model_specter2", object())
+    monkeypatch.setattr(api_module, "_device", "cpu")
+    monkeypatch.setattr(
+        api_module,
+        "_embed_specter2_texts",
+        lambda texts, *_args: captured.setdefault("texts", texts),
+    )
+
+    with caplog.at_level(logging.INFO, logger="citation_api"):
+        api_module._warmup_specter2()
+
+    assert captured["texts"] == [
+        "A brief sentence used to initialize SPECTER2 inference."
+    ]
+    assert "Ejemplo SPECTER2" in caplog.text
+
+
+def test_gemma3_preload_sends_empty_generation_request(monkeypatch) -> None:
+    captured_request = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps({"response": "OK"}).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured_request["url"] = request.full_url
+        captured_request["body"] = json.loads(request.data)
+        captured_request["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(api_module.urllib.request, "urlopen", fake_urlopen)
+
+    api_module._preload_gemma3()
+
+    assert captured_request["url"] == api_module.GEMMA3_API_URL
+    assert captured_request["body"] == {
+        "model": api_module.GEMMA3_MODEL,
+        "prompt": "Reply with only OK.",
+        "stream": False,
+        "options": {
+            **api_module._gemma3_options(),
+            "num_predict": 4,
+        },
+    }
+    assert captured_request["timeout"] == api_module.GEMMA3_TIMEOUT_SECONDS
+
+
+@pytest.mark.parametrize(("enabled", "expected_calls"), [(True, 1), (False, 0)])
+def test_model_preloading_is_controlled_by_setting(
+    monkeypatch, enabled: bool, expected_calls: int
+) -> None:
+    preload_calls = []
+    monkeypatch.setattr(main_module.settings, "PRELOAD_MODELS", enabled)
+    monkeypatch.setattr(
+        main_module,
+        "preload_models",
+        lambda: preload_calls.append("preloaded"),
+    )
+
+    with TestClient(main_module.app):
+        pass
+
+    assert len(preload_calls) == expected_calls
 
 
 @pytest.mark.skipif(

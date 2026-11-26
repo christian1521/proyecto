@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -8,14 +9,26 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from app.api import api_router
+from app.api import api_router, preload_models
 from app.config import settings, setup_app_logging
 
 setup_app_logging(config=settings)
 
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    logger.info("PRELOAD_MODELS={}", settings.PRELOAD_MODELS)
+    if settings.PRELOAD_MODELS:
+        preload_models()
+    else:
+        logger.info("Carga de modelos perezosa habilitada.")
+    yield
+
+
 app = FastAPI(
-    title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan,
 )
 
 root_router = APIRouter()

@@ -48,6 +48,7 @@ Si `health` devuelve `"status":"degraded"`, el servicio no encontró los modelos
 | --- | --- | --- |
 | `PORT` | Puerto de Uvicorn (Railway lo inyecta) | `8001` en la imagen, `8080` en `run.sh` |
 | `MAX_LENGTH` | Longitud máxima de tokens de la entrada | `128` |
+| `PRELOAD_MODELS` | Ejecuta inferencias de calentamiento para SciBERT, SPECTER2 y Gemma 3 al iniciar; requiere que Ollama esté accesible | `false` |
 
 ## Pruebas automatizadas
 

@@ -562,13 +562,7 @@ def _classify_with_gemma3(
             "prompt": _build_gemma3_prompt(citing_sentence, ranked_chunks),
             "stream": False,
             "format": "json",
-            "options": {
-                "temperature": 0,
-                "num_ctx": GEMMA3_NUM_CTX,
-                "num_thread": GEMMA3_NUM_THREAD,
-                "num_predict": GEMMA3_NUM_PREDICT,
-                "num_batch": GEMMA3_NUM_BATCH,
-            },
+            "options": _gemma3_options(),
         }
     ).encode("utf-8")
     request = urllib.request.Request(
@@ -590,6 +584,101 @@ def _classify_with_gemma3(
         )
 
     return _format_model_result(response_text, citing_sentence, "Gemma 3")
+
+
+def _gemma3_options() -> dict:
+    return {
+        "temperature": 0,
+        "num_ctx": GEMMA3_NUM_CTX,
+        "num_thread": GEMMA3_NUM_THREAD,
+        "num_predict": GEMMA3_NUM_PREDICT,
+        "num_batch": GEMMA3_NUM_BATCH,
+    }
+
+
+def _warmup_scibert() -> None:
+    import torch
+
+    _load_model_if_needed()
+    warmup_context = "Warm-up citation #CITATION_TAG."
+    warmup_chunks = [
+        (
+            {
+                "section": "Results",
+                "text": "A brief passage used to initialize inference.",
+            },
+            1.0,
+        )
+    ]
+    logger.info(
+        "Ejemplo SciBERT: contexto=%r, chunk=%r",
+        warmup_context,
+        warmup_chunks[0][0],
+    )
+    inputs = _build_scibert_inputs(
+        warmup_context,
+        warmup_chunks,
+        _tokenizer_scibert,
+        _device,
+    )
+    with torch.no_grad():
+        _model_scibert(**inputs)
+    logger.info("SciBERT listo tras una inferencia de calentamiento.")
+
+
+def _warmup_specter2() -> None:
+    _load_specter2_if_needed()
+    warmup_text = "A brief sentence used to initialize SPECTER2 inference."
+    logger.info("Ejemplo SPECTER2: texto=%r", warmup_text)
+    _embed_specter2_texts(
+        [warmup_text],
+        _tokenizer_specter2,
+        _model_specter2,
+        _device,
+    )
+    logger.info("SPECTER2 listo tras una inferencia de calentamiento.")
+
+
+def _preload_gemma3() -> None:
+    gemma3_options = _gemma3_options()
+    gemma3_options["num_predict"] = 4
+    warmup_prompt = "Reply with only OK."
+    logger.info("Ejemplo Gemma 3: prompt=%r", warmup_prompt)
+    request_body = json.dumps(
+        {
+            "model": GEMMA3_MODEL,
+            "prompt": warmup_prompt,
+            "stream": False,
+            "options": gemma3_options,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        GEMMA3_API_URL,
+        data=request_body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    response = _post_json_request(
+        request,
+        provider="Ollama",
+        timeout=GEMMA3_TIMEOUT_SECONDS,
+    )
+    if not isinstance(response.get("response"), str):
+        raise ModelServiceError(
+            "Ollama no completó la inferencia de calentamiento de Gemma 3.",
+            status_code=502,
+        )
+    logger.info("Gemma 3 listo tras una inferencia de calentamiento.")
+
+
+def preload_models() -> None:
+    logger.info("Calentando SciBERT...")
+    _warmup_scibert()
+    logger.info("Calentando SPECTER2...")
+    _warmup_specter2()
+    logger.info("Calentando Gemma 3 en Ollama...")
+    _preload_gemma3()
+    logger.info("Calentamiento de todos los modelos completado.")
 
 
 def _classify_with_nvidia(
