@@ -31,17 +31,15 @@ SPECTER2_ADAPTER = "allenai/specter2"
 SPECTER2_MAX_LENGTH = 512
 GEMMA3_MODEL = "gemma3:4b"
 GEMMA3_API_URL = os.environ.get("GEMMA3_API_URL", "http://localhost:11434/api/generate")
-GEMMA3_TIMEOUT_SECONDS = 120
-GEMMA3_NUM_CTX = int(os.environ.get("GEMMA3_NUM_CTX", "4096"))
+GEMMA3_TIMEOUT_SECONDS = int(os.environ.get("GEMMA3_TIMEOUT_SECONDS", "120"))
+GEMMA3_NUM_CTX = int(os.environ.get("GEMMA3_NUM_CTX", "8192"))
 GEMMA3_NUM_THREAD = int(os.environ.get("GEMMA3_NUM_THREAD", "8"))
 # $env:API_KEY_NVIDIA="nvapi-XXX"
 # export API_KEY_NVIDIA="nvapi-XXX"
 NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 NVIDIA_TIMEOUT_SECONDS = int(os.environ.get("NVIDIA_TIMEOUT_SECONDS", "300"))
-NVIDIA_CONNECT_TIMEOUT_SECONDS = int(
-    os.environ.get("NVIDIA_CONNECT_TIMEOUT_SECONDS", "20")
-)
+NVIDIA_CONNECT_TIMEOUT_SECONDS = int(os.environ.get("NVIDIA_CONNECT_TIMEOUT_SECONDS", "20"))
 MAX_LENGTH = int(os.environ.get("MAX_LENGTH", "512"))
 MAX_CONTEXT_TOKENS = 200
 CHUNK_CACHE_MAX_DOCUMENTS = 20
