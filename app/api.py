@@ -30,10 +30,7 @@ SPECTER2_BASE_MODEL = "allenai/specter2_base"
 SPECTER2_ADAPTER = "allenai/specter2"
 SPECTER2_MAX_LENGTH = 512
 GEMMA3_MODEL = "gemma3:12b"
-GEMMA3_API_URL = os.environ.get(
-    "GEMMA3_API_URL",
-    "http://localhost:11434/api/generate",
-)
+GEMMA3_API_URL = os.environ.get("GEMMA3_API_URL", "http://localhost:11434/api/generate")
 GEMMA3_TIMEOUT_SECONDS = 120
 # $env:API_KEY_NVIDIA="nvapi-XXX"
 # export API_KEY_NVIDIA="nvapi-XXX"
