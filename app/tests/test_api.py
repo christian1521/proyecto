@@ -475,6 +475,8 @@ def test_gemma3_prompt_and_response_use_catalog_categories(monkeypatch) -> None:
     category = "Evidence"
     monkeypatch.setattr(api_module, "GEMMA3_NUM_CTX", 3072)
     monkeypatch.setattr(api_module, "GEMMA3_NUM_THREAD", 6)
+    monkeypatch.setattr(api_module, "GEMMA3_NUM_PREDICT", 96)
+    monkeypatch.setattr(api_module, "GEMMA3_NUM_BATCH", 192)
     response_body = json.dumps(
         {
             "response": json.dumps(
@@ -544,6 +546,8 @@ def test_gemma3_prompt_and_response_use_catalog_categories(monkeypatch) -> None:
         "temperature": 0,
         "num_ctx": 3072,
         "num_thread": 6,
+        "num_predict": 96,
+        "num_batch": 192,
     }
     prompt = captured_request["body"]["prompt"]
     assert "Section: Results\nText: The method improved the measured outcome." in prompt

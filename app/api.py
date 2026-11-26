@@ -34,6 +34,8 @@ GEMMA3_API_URL = os.environ.get("GEMMA3_API_URL", "http://localhost:11434/api/ge
 GEMMA3_TIMEOUT_SECONDS = int(os.environ.get("GEMMA3_TIMEOUT_SECONDS", "120"))
 GEMMA3_NUM_CTX = int(os.environ.get("GEMMA3_NUM_CTX", "8192"))
 GEMMA3_NUM_THREAD = int(os.environ.get("GEMMA3_NUM_THREAD", "8"))
+GEMMA3_NUM_PREDICT = int(os.environ.get("GEMMA3_NUM_PREDICT", "128"))
+GEMMA3_NUM_BATCH = int(os.environ.get("GEMMA3_NUM_BATCH", "256"))
 # $env:API_KEY_NVIDIA="nvapi-XXX"
 # export API_KEY_NVIDIA="nvapi-XXX"
 NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
@@ -564,6 +566,8 @@ def _classify_with_gemma3(
                 "temperature": 0,
                 "num_ctx": GEMMA3_NUM_CTX,
                 "num_thread": GEMMA3_NUM_THREAD,
+                "num_predict": GEMMA3_NUM_PREDICT,
+                "num_batch": GEMMA3_NUM_BATCH,
             },
         }
     ).encode("utf-8")
