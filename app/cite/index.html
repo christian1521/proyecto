@@ -423,10 +423,19 @@
                         body: JSON.stringify(payload)
                     });
 
-                    const data = await response.json();
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch {
+                        const message = response.ok
+                            ? 'La API devolvió una respuesta que no es JSON válida.'
+                            : `Error HTTP ${response.status}: ${responseText.slice(0, 200) || response.statusText}`;
+                        throw new Error(message);
+                    }
 
                     if (!response.ok) {
-                        throw new Error(data.detail);
+                        throw new Error(data.detail || `Error HTTP ${response.status}.`);
                     }
 
                     renderResults(data);
