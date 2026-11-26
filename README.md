@@ -26,7 +26,7 @@ Se contemplan estos componentes para crear una solución completa para el usuari
 | Código | <https://github.com/christian1521/proyecto> |
 | Tablero | <https://cite-api-production.up.railway.app/cite/> |
 | API | <https://cite-api-production.up.railway.app/docs/> |
-| Docker | `docker pull fredygamez/cite-api:v0.9` |
+| Docker | `docker pull ghcr.io/christian1521/cite-proyecto-grupo26:v0.1` |
 
 ### Inicio rápido
 
