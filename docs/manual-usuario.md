@@ -34,17 +34,11 @@ Tutorial CiteAnalyzer: clasificar la función retórica de citas científicas au
 3. Escribir código arXiv citado (cited paper)
 4. Seleccionar modelo de clasificación
 5. Presionar botón "Analizar Cita"
-
 6. Ver predicción principal. Por ejemplo "función de GAP"
 7. Consultar puntuación de confianza de la función identificada
 8. Revisar score de confianza de otras categorías
 9. Comparar con párrafos más similares semanticamente del artículo y su sección. 
-
 ```
-
-
-
-
 
 
 
