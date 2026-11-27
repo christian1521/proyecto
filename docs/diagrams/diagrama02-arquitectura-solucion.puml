@@ -1,0 +1,126 @@
+@startuml
+!theme plain
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment center
+
+left to right direction
+
+' =========================================================
+' 1. DATASET (PASO ÚNICO)
+' =========================================================
+rectangle "1. Creación del Dataset\n(Paso único)" as DS_Init {
+  rectangle "Dataset de Citas\n(Contexto: left, citing, right\n+ Título y Resumen)" as RawData
+}
+
+' =========================================================
+' 2. PRE-ETIQUETADO Y BALANCEO
+' =========================================================
+together {
+  rectangle "2. LLM Pre-labeling\n(02_prelabel_citation_function.py)" as Prelabel {
+    rectangle "Comité de Jueces LLM\n(llama3.1:8b | qwen2.5:7b | mistral-nemo)" as Judges
+    rectangle "Prompt (9 categorías)\n+ Revisión por pares\n(Cohen Kappa / Fleiss)" as PromptEval
+    rectangle "Clasificadores de Agregación\n• unanimous (todos coinciden)\n• bootstrap (desacuerdo -> pesos/confianza)\n• unlabeled (sin respuesta -> reintento)" as AggClassifiers
+
+    Judges -down-> PromptEval
+    PromptEval -down-> AggClassifiers
+  }
+
+  rectangle "3. Minority Class Resampling" as Resampling {
+    rectangle "Filtro (< 2,000 ejemplos)" as Filter2k
+    rectangle "Descarga dirigida por\ncategoría arXiv mayoritaria" as ArxivDL
+    Filter2k -down-> ArxivDL
+  }
+
+  rectangle "4. Manual Annotation" as Manual {
+    rectangle "Etiquetado manual\n(470 citas)" as Man470
+    rectangle "Orden jerárquico (9 clases)\n+ Regla anti-solapamiento\n(mismo documento -> Test)" as ManRules
+    Man470 -down-> ManRules
+  }
+}
+
+' =========================================================
+' 5. AUMENTO DE DATOS Y SPLITTING
+' =========================================================
+together {
+  rectangle "5. Data Augmentation (BART)" as Aug {
+    rectangle "eugenesiow/bart-paraphrase\nCuotas: S(g,c) = Q(g,c) - R(g,c)" as BART
+    rectangle "Control de calidad\nSimilitud de Jaccard (0.6 - 0.9)" as Jaccard
+    BART -down-> Jaccard
+  }
+
+  rectangle "6. Data Splitting" as Split {
+    rectangle "Train (70%)\n28,224 citas (3,136/clase)" as Train
+    rectangle "Val (15%)\n6,048 citas (672/clase)" as Val
+    rectangle "Test (15%)\n6,048 citas (672/clase)" as Test
+
+    Train -[hidden]down-> Val
+    Val -[hidden]down-> Test
+  }
+}
+
+' =========================================================
+' 7. CLASIFICADORES Y ARQUITECTURA DE LA RED NEURONAL
+' =========================================================
+rectangle "7. Classifiers & Experiments" as Classifiers {
+
+  rectangle "Clasificador Principal: SciBERT Fine-tuning\n(allenai/scibert_scivocab_uncased)" as SciBERT {
+    rectangle "Entrada (máx. 512 tokens)\n[CLS] c (200) [SEP] k1 [SEP] k2 [SEP] k3 [SEP]" as InputSeq
+    rectangle "Encoder SciBERT\nExtrae vector [CLS] h ∈ ℝ⁷⁶⁸" as Encoder
+    rectangle "Capa Densa + tanh\ntanh(W₁h + b₁)" as Dense
+    rectangle "Capa Dropout\n(p = 0.1)" as Dropout
+    rectangle "Capa Lineal de Clasificación\nz = W₂(·) + b₂  (logits ∈ ℝ⁹)" as Linear
+    rectangle "Softmax (pⱼ) + Cross-Entropy (ℒ)\nPredicción: ŷ = argmax(pⱼ)" as Softmax
+    rectangle "Ablación de datos\n• Contexto + Chunks\n• Solo Contexto\n• Solo Chunks" as Ablation
+
+    InputSeq -down-> Encoder
+    Encoder -down-> Dense
+    Dense -down-> Dropout
+    Dropout -down-> Linear
+    Linear -down-> Softmax
+    Softmax -[hidden]down-> Ablation
+  }
+
+  rectangle "Experimento 1: Gemma 3\n(gemma3:12b)" as Gemma {
+    rectangle "Zero-shot (Ollama)\n• Sin chunks (solo contexto + título/resumen)\n• temp=0.0, seed=13, JSON estricto\n• Contexto: 4096 tokens" as GemmaConf
+  }
+
+  rectangle "Experimento 2: GPT-OSS\n(gpt-oss:20b)" as GPTOSS {
+    rectangle "Reasoning / CoT\n• Sin chunks (solo contexto + título/resumen)\n• think='low', temp=0.0, seed=13\n• Contexto: 8192 tokens" as GPTConf
+  }
+
+  SciBERT -[hidden]down-> Gemma
+  Gemma -[hidden]down-> GPTOSS
+}
+
+' =========================================================
+' 8. EVALUACIÓN Y COMPARACIÓN
+' =========================================================
+rectangle "8. Evaluation / Comparison" as EvalComp {
+  rectangle "Métricas\n• Macro-F1\n• Accuracy\n• IC 95%" as Metrics
+  rectangle "Comparación Pareada\nRemuestreo Bootstrap agrupado\npor arXiv (3,719 citas reales de Test)" as Comp
+
+  Metrics -down-> Comp
+}
+
+' =========================================================
+' FLUJO PRINCIPAL
+' =========================================================
+RawData -right-> Judges
+AggClassifiers -down-> Filter2k
+ArxivDL -down-> Man470
+ManRules -right-> BART
+Jaccard -down-> Train
+
+Train -right-> InputSeq
+Val -right-> Softmax : "Early stopping\n(mejor Macro-F1)"
+Test -right-> InputSeq
+Test -right-> GemmaConf
+Test -right-> GPTConf
+
+SciBERT -right-> Metrics
+Gemma -right-> Metrics
+GPTOSS -right-> Metrics
+
+@enduml
