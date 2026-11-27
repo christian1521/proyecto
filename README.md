@@ -33,7 +33,7 @@ Se contemplan estos componentes para crear una solución completa para el usuari
 
 ```bash
 docker pull ghcr.io/christian1521/cite-proyecto-grupo26:latest
-docker run -d -p 8001:8001 -e PORT=8001 christian1521/cite-proyecto-grupo26:latest
+docker run -d -p 8001:8001 -e PORT=8001 ghcr.io/christian1521/cite-proyecto-grupo26:latest
 # http://localhost:8001/cite/
 ```
 
