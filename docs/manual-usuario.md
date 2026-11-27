@@ -11,9 +11,42 @@ Hay varias formas de ingresar:
 
 ![Página de inicio](images/image-20260922135617600.png)
 
-## 2. Ingresar los datos
+###### INTERFASE DE USUARIO 
 
 ![Ingreso de datos](images/imagen_APP_01-1788754781473-5.png)
+
+
+
+## 2. Ingresar los datos
+
+
+
+![image-20261126220819391](./images/image-20261126220819391.png)
+
+![image-20261126221413813](./images/image-20261126221413813.png)
+
+
+
+```markdown
+Tutorial CiteAnalyzer: clasificar la función retórica de citas científicas automáticamente.
+1. Ingresar un texto de marcando la ubicacion de [CITA].
+2. (opcional) Cargar textos de ejemplo de citas. 
+3. Escribir código arXiv citado (cited paper)
+4. Seleccionar modelo de clasificación
+5. Presionar botón "Analizar Cita"
+
+6. Ver predicción principal. Por ejemplo "función de GAP"
+7. Consultar puntuación de confianza de la función identificada
+8. Revisar score de confianza de otras categorías
+9. Comparar con párrafos más similares semanticamente del artículo y su sección. 
+
+```
+
+
+
+
+
+
 
 | Campo | Obligatorio | Descripción |
 | --- | --- | --- |
