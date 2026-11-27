@@ -14,6 +14,7 @@ data/
 ./data/model_bert_citing_sentences.dvc
 
 # Ejemplos de referencia y experimentos (no son parte del servicio)
+notebooks/
 example-docker-api/
 example-docker-dash/
 experimentos-mlflow/
