@@ -18,15 +18,15 @@ más sencilla y la que se recomienda.
 ## Opción A - Desplegar en Railway (PaaS)
 
 1. En Railway, crear un proyecto y agregar un servicio con **Deploy → Docker Image**.
-2. Escribir la imagende DockerHub `fredygamez/cite-api:v0.9`.
-3. En **Variables**, definir `PORT=8080`. Opcionalmente, definir `MAX_LENGTH=128`.
+2. Escribir la imagen de Github ghcr `ghcr.io/christian1521/cite-proyecto-grupo26`.
+3. Ya el contenedor tiene las variables de entorno configuradas adecuadamente para el desplieqgue automatico.
 4. En **Settings → Networking**, generar un dominio público apuntando al puerto `8080`.
 5. Para actualizar, cambiar el *tag* de la imagen y volver a desplegar. Railway conserva el historial
    de despliegues.
 
 El repositorio incluye además `railway.json`, que sirve para construir desde el `Dockerfile`, con *healthcheck* en `/` y reintentos automáticos en caso de falla.
 
-Despliegue actual: <https://cite-api-production.up.railway.app/>
+Despliegue actual: <https://cite-proyecto-grupo26-production.up.railway.app/>
 
 ## Verificar la instalación
 
@@ -58,7 +58,7 @@ tox -e test_app        # pytest sobre app/tests/
 ```
 
 > [!CAUTION]
-> Verificar que las credenciales de AWS y las llaves `.pem` **nunca** se encuentren en repositorio Git.
+> Verificar que las credenciales  de AWS y las llaves `.pem` y API keys **nunca** se encuentren en repositorio Git.
 
 
 
@@ -183,8 +183,8 @@ docker logs -f cite-api-local
 
 ```bash
 docker login
-docker tag cite-api:local fredygamez/cite-api:v0.10
-docker push fredygamez/cite-api:v0.10
+docker tag cite-api:local christian1521/cite-proyecto-grupo26
+docker push christian1521/cite-proyecto-grupo26
 ```
 
 ### Accesos locales
@@ -207,10 +207,10 @@ Las versiones publicadas se pueden ver en <https://hub.docker.com/repository/doc
 
 ```bash
 # 1. Descargar la imagen
-docker pull fredygamez/cite-api:v0.9
+docker pull ghcr.io/christian1521/cite-proyecto-grupo26
 
 # 2. Ejecutar el contenedor (el servicio escucha en la variable PORT)
-docker run -d --name cite-api -p 8001:8001 -e PORT=8001 fredygamez/cite-api:v0.9
+docker run -d --name cite-api -p 8001:8001 -e PORT=8001 christian1521/cite-proyecto-grupo26
 
 # 3. Revisar los logs hasta que aparezca "Uvicorn running on http://0.0.0.0:8001"
 docker logs -f cite-api

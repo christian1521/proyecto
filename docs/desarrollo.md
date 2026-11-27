@@ -40,21 +40,110 @@ https://github.com/christian1521/proyecto
 └── README.md
 ```
 
+### Componentes de mayor tamaño  en Google Drive
+
+```bash
+.
+├── cache
+│   └── chunks.tar.gz
+├── dataset
+│   ├── dataset.json
+│   ├── test.json
+│   ├── train.json
+│   └── val.json
+├── modelos
+│   ├── gemma3
+│   ├── nemotron
+│   └── scibert
+└── semillas
+  └── arxiv-dataset-semilla-balanceada
+```
 
 
 
+# Recursos externos en Google Drive
+
+Algunos componentes del proyecto **no se encuentran en este repositorio** por su gran tamaño (modelos, datasets y caché precalculado). GitHub no son adecuados para archivos de varios GB, así que se almacenan en Google Drive.
+
+
+
+> **Acceso:** <https://drive.google.com/drive/folders/1U9tPHhoByzL7xWpYjXxXBE5Gz2L8QVeH?usp=sharing>
+>
+> > Descarga el contenido y colócalo en la **raíz del proyecto**, respetando exactamente la estructura de carpetas de abajo, para que el código, el `Dockerfile` y los scripts encuentren las rutas esperadas.
+
+---
+
+## Componentes de mayor tamaño en Google Drive
+
+```bash
+.
+├── cache
+│   └── chunks.tar.gz
+├── dataset
+│   ├── dataset.json
+│   ├── test.json
+│   ├── train.json
+│   └── val.json
+├── modelos
+│   ├── gemma3
+│   ├── nemotron
+│   └── scibert
+└── semillas
+    └── arxiv-dataset-semilla-balanceada
+```
+
+
+
+## Descripción de cada carpeta
+
+### `cache/`
+| Archivo         | Descripción                                                  |
+| --------------- | ------------------------------------------------------------ |
+| `chunks.tar.gz` | Caché precalculada de *chunks* (fragmentos de texto procesados) usada por la API para no recalcularlos en cada arranque. Se empaqueta comprimida; el `Dockerfile` la descomprime automáticamente con `ADD cache/chunks.tar.gz ./cache/`, quedando disponible en `/opt/proyecto/cache/chunks` (variable `CACHE_DIR`). |
+
+### `dataset/`
+Datos del proyecto en formato JSON.
+
+| Archivo        | Descripción                                                  |
+| -------------- | ------------------------------------------------------------ |
+| `dataset.json` | Dataset completo, antes de la partición.                     |
+| `train.json`   | Partición de **entrenamiento**.                              |
+| `val.json`     | Partición de **validación**, para ajustar hiperparámetros y monitorear el entrenamiento. |
+| `test.json`    | Partición de **prueba**, reservada para la evaluación final del modelo. |
+
+### `modelos/`
+Pesos de los modelos utilizados por el sistema.
+
+| Carpeta     | Descripción                                                  |
+| ----------- | ------------------------------------------------------------ |
+| `gemma3/`   | Modelo de lenguaje **Gemma 3** servido localmente con **Ollama** para generación de texto. En el despliegue en Railway se descarga durante el build (`ollama pull gemma3:4b`). |
+| `nemotron/` | Modelo **NVIDIA Nemotron**, alternativa de LLM para el sistema. |
+| `scibert/`  | Modelo **SciBERT** (BERT entrenado sobre literatura científica) usado por la API para el análisis de textos académicos. El `Dockerfile` lo copia a `/opt/proyecto/models/scibert` (variable `MODEL_DIR`). |
+
+### `semillas/`
+| Carpeta                             | Descripción                                                  |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `arxiv-dataset-semilla-balanceada/` | Conjunto *semilla* extraído de **arXiv**, balanceado por clase, a partir del cual se construyen los datasets del proyecto. |
+
+---
+
+## Notas
+
+- Estas carpetas están excluidas del control de versiones mediante `.gitignore`.
+- Para construir la imagen Docker, `cache/chunks.tar.gz` y `models/scibert` deben existir localmente antes de ejecutar `docker build`.
+- No subas estos archivos al repositorio; si se actualizan, reemplázalos en Google Drive.
 
 ## Diagrama de componentes
 
-![diagramacomponentes](./images/diagramacomponentes.png)
+![image-20261126233550810](./images/image-20261126233550810.png)
 
 
 
 > **Esquema de desarrollo y despliegue del servicio `\cite-api\`:**
 >
-> El diagrama ilustra el flujo de desarrollo, despliegue y operación del servicio *cite-api*, alojado en **Railway**. El usuario interactúa vía **HTTPS** con un contenedor Docker (`fredygamez/cite-api:v0.9`), que ejecuta una aplicación **FastAPI** con **Uvicorn**. Esta expone un *tablero* (`/cite/`) y una **API REST** (`/api/v1`), que consume dos modelos de lenguaje *fine-tuned*: **SciBERT** y **BERT**. El tablero recupera datos en formato JSON desde la API.
+> El diagrama ilustra el flujo de desarrollo, despliegue y operación del servicio *cite-api*, alojado en **Railway**. El usuario interactúa vía **HTTPS** con un contenedor Docker (`ghcr.io/christian1521/cite-proyecto-grupo26`), que ejecuta una aplicación **FastAPI** con **Uvicorn**. Esta expone un *tablero* (`/cite/`) y una **API REST** (`/api/v1`), que consume dos modelos de lenguaje *fine-tuned*: **SciBERT** y **BERT**. El tablero recupera datos en formato JSON desde la API.
 >
-> El código fuente y la configuración residen en un repositorio **GitHub** (`christian1521/microproyecto`), donde se construye la imagen Docker y se sube a **DockerHub**. Los modelos y datasets se gestionan con **DVC** en un bucket de **AWS S3** (`christian1521-dvcstore`), mientras que el registro de experimentos de *MLOps* se realiza con **MLFlow** en una instancia **AWS EC2**. Este esquema garantiza un despliegue escalable y un desarrollo colaborativo.
+> El código fuente y la configuración residen en un repositorio **GitHub** (`christian1521/proyecto`), donde se construye la imagen Docker y se sube a **DockerHub**. Los modelos y datasets se gestionan con **DVC** en un bucket de **AWS S3** (`christian1521-dvcstore`), mientras que el registro de experimentos de *MLOps* se realiza con **MLFlow** en una instancia **AWS EC2**. Este esquema garantiza un despliegue escalable y un desarrollo colaborativo.
 
 
 
