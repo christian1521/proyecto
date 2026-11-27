@@ -174,9 +174,10 @@ def test_model_preloading_is_controlled_by_setting(
     or not CACHED_EMBEDDINGS_AVAILABLE.exists(),
     reason="No se encontró SciBERT o los archivos de prueba en caché.",
 )
-def test_make_prediction(test_data: pd.DataFrame) -> None:
+def test_make_prediction(test_data: pd.DataFrame, monkeypatch) -> None:
     # Given
     sample = test_data.iloc[0]
+    monkeypatch.setattr(api_module, "_load_cited_document_title_index", lambda: {})
  
     # When
     prediction_data = predict(
@@ -431,6 +432,30 @@ def test_scibert_can_classify_without_chunks(monkeypatch) -> None:
     assert result["chunks"] == []
 
 
+def test_cited_document_title_index_uses_first_matching_record(
+    monkeypatch, tmp_path
+) -> None:
+    metadata_path = tmp_path / "citations_labeled_v2.json"
+    metadata_path.write_text(
+        json.dumps(
+            [
+                {"cited_arxiv_id": "1234.56789", "cited_title": "Primer título"},
+                {"cited_arxiv_id": "1234.56789", "cited_title": "Segundo título"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(api_module, "CITED_METADATA_PATH", metadata_path)
+    api_module._load_cited_document_title_index.cache_clear()
+
+    try:
+        title_index = api_module._load_cited_document_title_index()
+    finally:
+        api_module._load_cited_document_title_index.cache_clear()
+
+    assert title_index["1234.56789"] == "Primer título"
+
+
 @pytest.mark.parametrize(
     ("type_model", "classifier_name"),
     [
@@ -460,16 +485,24 @@ def test_external_models_can_classify_without_chunks(
         "_load_cited_chunks",
         lambda *_args: pytest.fail("No debe cargarse el caché si se desactivan los chunks."),
     )
+    monkeypatch.setattr(
+        api_module,
+        "_load_cited_document_title_index",
+        lambda: {"1234.56789": "Título de prueba"},
+    )
     monkeypatch.setattr(api_module, classifier_name, fake_classifier)
 
     result = predict(
         citing_sentence="The cited work supports the result [CITA].",
         type_model=type_model,
+        cited_paragraphs="arXiv:1234.56789",
         use_chunks=False,
     )
 
     assert received_chunks == [[]]
     assert result["chunks"] == []
+    assert result["cited_title"] == "Título de prueba"
+    assert result["cited_arxiv_url"] == "https://arxiv.org/abs/1234.56789"
 
 
 def test_invalid_arxiv_id_is_rejected_before_loading_model(monkeypatch) -> None:

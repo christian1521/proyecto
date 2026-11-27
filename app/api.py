@@ -26,6 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 CACHE_CHUNKS_DIR = BASE_DIR / "cache" / "chunks"
 CACHE_CHUNKS_ARCHIVE = BASE_DIR / "cache" / "chunks.tar.gz"
+CITED_METADATA_PATH = BASE_DIR / "data" / "citations_labeled_v2.json"
 SPECTER2_BASE_MODEL = "allenai/specter2_base"
 SPECTER2_ADAPTER = "allenai/specter2"
 SPECTER2_MAX_LENGTH = 512
@@ -59,6 +60,10 @@ _chunks_archive_lock = threading.RLock()
 
 class CitedDocumentNotFoundError(FileNotFoundError):
     """Genera error cuando un documento arXiv no está presente en el caché local."""
+
+
+class CitedDocumentMetadataError(RuntimeError):
+    """Genera error cuando no se puede leer el título de un documento citado."""
 
 
 class ModelServiceError(RuntimeError):
@@ -99,6 +104,96 @@ def _normalize_arxiv_id(cited_paragraphs: Optional[str]) -> Optional[str]:
         raise ValueError("El código arXiv debe tener el formato 'arXiv:0706.3639'.")
 
     return match.group(1)
+
+
+@lru_cache(maxsize=1)
+def _load_cited_document_title_index() -> Dict[str, Optional[str]]:
+    if not CITED_METADATA_PATH.is_file():
+        raise CitedDocumentMetadataError(
+            f"No se encontró el archivo de títulos '{CITED_METADATA_PATH}'."
+        )
+
+    with CITED_METADATA_PATH.open("r", encoding="utf-8-sig") as file:
+        contents = file.read()
+
+    decoder = json.JSONDecoder()
+    position = 0
+
+    def skip_whitespace() -> None:
+        nonlocal position
+        while position < len(contents) and contents[position] in " \t\r\n":
+            position += 1
+
+    skip_whitespace()
+    if position >= len(contents) or contents[position] != "[":
+        raise CitedDocumentMetadataError(
+            f"El archivo de títulos '{CITED_METADATA_PATH}' debe contener "
+            "un arreglo JSON."
+        )
+    position += 1
+
+    titles: Dict[str, Optional[str]] = {}
+    first_record = True
+    while True:
+        skip_whitespace()
+        if position >= len(contents):
+            raise CitedDocumentMetadataError(
+                f"El arreglo JSON de '{CITED_METADATA_PATH}' está incompleto."
+            )
+        if contents[position] == "]":
+            position += 1
+            break
+        if not first_record:
+            if contents[position] != ",":
+                raise CitedDocumentMetadataError(
+                    f"El arreglo JSON de '{CITED_METADATA_PATH}' no es válido."
+                )
+            position += 1
+            skip_whitespace()
+            if position >= len(contents) or contents[position] == "]":
+                raise CitedDocumentMetadataError(
+                    f"El arreglo JSON de '{CITED_METADATA_PATH}' no es válido."
+                )
+
+        try:
+            record, position = decoder.raw_decode(contents, position)
+        except json.JSONDecodeError as error:
+            raise CitedDocumentMetadataError(
+                f"No se pudo leer el archivo de títulos '{CITED_METADATA_PATH}'."
+            ) from error
+        if not isinstance(record, dict):
+            raise CitedDocumentMetadataError(
+                f"El archivo de títulos '{CITED_METADATA_PATH}' debe contener "
+                "objetos JSON."
+            )
+
+        cited_arxiv_id = record.get("cited_arxiv_id")
+        if isinstance(cited_arxiv_id, str):
+            cited_title = record.get("cited_title")
+            titles.setdefault(
+                cited_arxiv_id,
+                cited_title if isinstance(cited_title, str) else None,
+            )
+        first_record = False
+
+    skip_whitespace()
+    if position != len(contents):
+        raise CitedDocumentMetadataError(
+            f"Hay contenido inesperado después del arreglo JSON "
+            f"'{CITED_METADATA_PATH}'."
+        )
+
+    return titles
+
+
+def _get_cited_document_metadata(
+    arxiv_id: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    if arxiv_id is None:
+        return None, None
+
+    title = _load_cited_document_title_index().get(arxiv_id)
+    return title, f"https://arxiv.org/abs/{arxiv_id}"
 
 
 def _close_chunk_cache_archive() -> None:
@@ -672,13 +767,13 @@ def _preload_gemma3() -> None:
 
 
 def preload_models() -> None:
-    logger.info("Calentando SciBERT...")
+    logger.info("Precargando SciBERT...")
     _warmup_scibert()
-    logger.info("Calentando SPECTER2...")
+    logger.info("Precargando SPECTER2...")
     _warmup_specter2()
-    logger.info("Calentando Gemma 3 en Ollama...")
+    logger.info("Precargando Gemma 3 en Ollama...")
     _preload_gemma3()
-    logger.info("Calentamiento de todos los modelos completado.")
+    logger.info("Precarga de todos los modelos completada.")
 
 
 def _classify_with_nvidia(
@@ -999,6 +1094,12 @@ def predict(
             "o 'nvidia_nemotron_3_ultra_550b_a55b'."
         )
 
+    cited_title, cited_arxiv_url = _get_cited_document_metadata(arxiv_id)
+    cited_document = {
+        "cited_title": cited_title,
+        "cited_arxiv_url": cited_arxiv_url,
+    }
+
     chunks_cache_state = "skipped"
     chunks_cache_seconds = 0.0
     cited_chunks = []
@@ -1086,11 +1187,13 @@ def predict(
     if type_model == "gemma3":
         result = _classify_with_gemma3(citing_sentence, ranked_chunks)
         result["chunks"] = chunks_result
+        result.update(cited_document)
         return result
 
     if type_model == "nvidia_nemotron_3_ultra_550b_a55b":
         result = _classify_with_nvidia(citing_sentence, ranked_chunks)
         result["chunks"] = chunks_result
+        result.update(cited_document)
         return result
 
     import torch
@@ -1127,6 +1230,8 @@ def predict(
     if citation_info is not None:
         result["definition"] = citation_info.definition
         result["criteria"] = citation_info.criteria
+
+    result.update(cited_document)
 
     logger.info(
         "prediction_timing model=%s device=%s chunks=%d "
@@ -1208,6 +1313,8 @@ def classify_citation(payload: CitationRequest):
         )
     except CitedDocumentNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except CitedDocumentMetadataError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except ModelServiceError as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
     except FileNotFoundError as e:

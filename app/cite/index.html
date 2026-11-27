@@ -45,7 +45,16 @@
                 <i class="fa-solid fa-book-open-reader mr-2"></i>
                 CiteAnalyzer
             </h1>
-            <span class="text-sm font-light text-blue-200">Clasificación de la Función de Cita</span>
+            <div class="flex items-center gap-4">
+                <span class="hidden sm:inline text-sm font-light text-blue-200">Clasificación de la Función de Cita</span>
+                <a href="https://christian1521.github.io/proyecto/manual-usuario.html"
+                    target="_blank" rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-white"
+                    aria-label="Abrir el manual de usuario en una pestaña nueva">
+                    <i class="fa-regular fa-circle-question" aria-hidden="true"></i>
+                    <span>Ayuda</span>
+                </a>
+            </div>
         </div>
     </nav>
 
@@ -186,6 +195,18 @@
                 </div>
 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
+                    <div id="cited-document-section" class="hidden mb-6 pb-4 border-b border-slate-100">
+                        <h2 id="cited-document-title" class="text-lg font-bold text-slate-800 mb-1"></h2>
+                        <a id="cited-document-link" href="#" target="_blank" rel="noopener noreferrer"
+                            class="text-sm text-blue-600 hover:text-blue-800 underline">
+                            Consultar documento citado en arXiv.org
+                        </a>
+                        <button id="cited-document-viewer-button" type="button"
+                            class="ml-3 text-sm font-medium text-blue-700 hover:text-blue-900 underline">
+                            Ver aquí
+                        </button>
+                    </div>
+
                     <div id="chunks-section" class="hidden mb-6">
                         <div class="flex justify-between items-center mb-4 border-b pb-2">
                             <h2 class="text-lg font-bold text-slate-700">Párrafos más similares</h2>
@@ -209,6 +230,26 @@
             </div>
         </section>
     </main>
+
+    <div id="arxiv-viewer-modal"
+         class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-3 sm:p-6"
+         role="dialog" aria-modal="true" aria-labelledby="arxiv-viewer-title">
+        <section class="flex h-[92vh] max-h-[1000px] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <header class="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3">
+                <h2 id="arxiv-viewer-title" class="font-semibold text-slate-800">Documento arXiv</h2>
+                <button id="arxiv-viewer-close" type="button" aria-label="Cerrar visor del documento"
+                    class="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
+                </button>
+            </header>
+            <p id="arxiv-viewer-status" class="px-4 py-2 text-sm text-slate-600" role="status" aria-live="polite">
+                Cargando documento de arXiv...
+            </p>
+            <iframe id="arxiv-viewer-frame" title="Documento HTML de arXiv"
+                sandbox="allow-same-origin" referrerpolicy="no-referrer"
+                class="hidden min-h-0 w-full flex-1 border-0"></iframe>
+        </section>
+    </div>
 
     <div id="function-drawer-overlay"
          class="hidden fixed inset-0 bg-black/40 z-40 opacity-0 transition-opacity duration-300 ease-in-out">
@@ -340,11 +381,24 @@
             const confidenceScoreEl = document.getElementById('confidence-score');
             const confidenceBarEl = document.getElementById('confidence-bar');
             const probabilitiesContainer = document.getElementById('probabilities-container');
+            const citedDocumentSection = document.getElementById('cited-document-section');
+            const citedDocumentTitleEl = document.getElementById('cited-document-title');
+            const citedDocumentLinkEl = document.getElementById('cited-document-link');
+            const citedDocumentViewerButton = document.getElementById('cited-document-viewer-button');
             const chunksSection = document.getElementById('chunks-section');
             const chunksContainer = document.getElementById('chunks-container');
             const probabilitiesTitle = document.getElementById('probabilities-title');
             const probabilitiesDescription = document.getElementById('probabilities-description');
             const probabilitiesHelp = document.getElementById('probabilities-help');
+
+            const arxivViewerModal = document.getElementById('arxiv-viewer-modal');
+            const arxivViewerCloseButton = document.getElementById('arxiv-viewer-close');
+            const arxivViewerStatus = document.getElementById('arxiv-viewer-status');
+            const arxivViewerFrame = document.getElementById('arxiv-viewer-frame');
+            let currentCitedArxivUrl = '';
+            let currentBestChunkText = '';
+            let arxivViewerRequestId = 0;
+            let arxivViewerReturnFocus = null;
 
             const drawer = document.getElementById('function-drawer');
             const drawerOverlay = document.getElementById('function-drawer-overlay');
@@ -370,14 +424,24 @@
 
             const defaultColor = { badge: "bg-slate-100 text-slate-800", bar: "bg-slate-500" };
 
+            citedDocumentViewerButton.addEventListener('click', () => {
+                openArxivViewer(currentCitedArxivUrl, '');
+            });
+            arxivViewerCloseButton.addEventListener('click', closeArxivViewer);
+            arxivViewerModal.addEventListener('click', (event) => {
+                if (event.target === arxivViewerModal) {
+                    closeArxivViewer();
+                }
+            });
+
             loadExampleBtn1.addEventListener('click', () => {
-                citationText.value = "In other related work [CITA] have explored non-lexical constraints, but do not examine how these could facilitate use of grounding and external knowledge.";
-                setCitedParagraphs("arXiv:1909.05858");
+                citationText.value = "The resulting large non-parallelizable fraction strongly decreases the efficacy (or in other words: the performance gain or speedup) of the system , [CITA].";
+                setCitedParagraphs("arXiv:1708.01462");
             });
 
             loadExampleBtn2.addEventListener('click', () => {
-                citationText.value = "To address this issue, as many studies have suggested [CITA] leveraging a curriculum learning (CL) technique that involves the gradual introduction of data augmentation techniques.";
-                setCitedParagraphs("arXiv:1903.09848");
+                citationText.value = "Since the introduction of the self-attention mechanism in Transformers, it has seen incredible success in a variety of sequence modeling tasks in a variety of fields, such as machine translation, object detection, music generation [CITA] and bioinformatics.";
+                setCitedParagraphs("arXiv:2004.08483");
             });
 
             loadExampleBtn3.addEventListener('click', () => {
@@ -386,13 +450,13 @@
             });
 
             loadExampleBtn4.addEventListener('click', () => {
-                citationText.value = "A recent study [CITA] found that while fair ranking algorithms such as Det-Greedy help increase the exposure of minority candidates, their effectiveness is limited by the job contexts in which employers have a preference to particular genders.";
-                setCitedParagraphs("arXiv:2012.00423");
+                citationText.value = "Other work incorporates relational knowledge bases [CITA], or commonsense knowledge graphs to conversational models.";
+                setCitedParagraphs("arXiv:1709.04264");
             });
 
             loadExampleBtn5.addEventListener('click', () => {
-                citationText.value = "Since the introduction of the self-attention mechanism in Transformers, it has seen incredible success in a variety of sequence modeling tasks in a variety of fields, such as machine translation, object detection, music generation [CITA] and bioinformatics.";
-                setCitedParagraphs("arXiv:2004.08483");
+                citationText.value = "A recent study [CITA] found that while fair ranking algorithms such as Det-Greedy help increase the exposure of minority candidates, their effectiveness is limited by the job contexts in which employers have a preference to particular genders.";
+                setCitedParagraphs("arXiv:2012.00423");
             });
 
             form.addEventListener('submit', async (e) => {
@@ -474,8 +538,17 @@
                 confidenceBarEl.style.width = `${confPercent}%`;
                 confidenceBarEl.className = `${styling.bar} h-2.5 rounded-full`;
 
+                const citedArxivUrl = typeof data.cited_arxiv_url === 'string'
+                    ? data.cited_arxiv_url
+                    : '';
+                citedDocumentTitleEl.textContent = data.cited_title || 'Título no disponible';
+                citedDocumentLinkEl.href = citedArxivUrl || '#';
+                citedDocumentSection.classList.toggle('hidden', !citedArxivUrl);
+
                 chunksContainer.innerHTML = '';
                 const chunks = Array.isArray(data.chunks) ? data.chunks : [];
+                currentCitedArxivUrl = citedArxivUrl;
+                currentBestChunkText = chunks.length > 0 ? (chunks[0].chunk_text1 || '') : '';
                 chunks.forEach((chunk, index) => {
                     const rank = index + 1;
                     const card = document.createElement('article');
@@ -500,6 +573,16 @@
 
                     heading.append(section, score);
                     card.append(heading, text);
+                    if (citedArxivUrl) {
+                        const viewParagraphButton = document.createElement('button');
+                        viewParagraphButton.type = 'button';
+                        viewParagraphButton.className = 'mt-3 text-sm font-medium text-blue-700 hover:text-blue-900 underline';
+                        viewParagraphButton.textContent = 'Ubicar este párrafo en el documento';
+                        viewParagraphButton.addEventListener('click', () => {
+                            openArxivViewer(citedArxivUrl, chunk[`chunk_text${rank}`] || '');
+                        });
+                        card.append(viewParagraphButton);
+                    }
                     chunksContainer.append(card);
                 });
                 chunksSection.classList.toggle('hidden', chunks.length === 0);
@@ -541,6 +624,244 @@
                     probabilitiesContainer.innerHTML += html;
                 });
             }
+
+            function normalizeDocumentText(value) {
+                return value.normalize('NFKC').toLowerCase()
+                    .replace(/([\p{L}])\u00ad\s*([\p{L}])/gu, '$1$2')
+                    .replace(/([\p{L}])-\s+([\p{L}])/gu, '$1$2')
+                    .replace(/\u00ad/g, '')
+                    .normalize('NFD')
+                    .replace(/\p{M}+/gu, '')
+                    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+                    .trim();
+            }
+
+            function buildSearchSegments(chunkText) {
+                const segments = new Set();
+                const addSegments = (rawTokens) => {
+                    const tokens = rawTokens.filter((token) => token.length > 2);
+                    if (tokens.length < 5) return;
+
+                    const windowSize = 14;
+                    const step = 9;
+                    if (tokens.length <= windowSize) {
+                        segments.add(tokens.join(' '));
+                        return;
+                    }
+
+                    for (let start = 0; start < tokens.length; start += step) {
+                        const segment = tokens.slice(start, start + windowSize);
+                        if (segment.length >= 5) {
+                            segments.add(segment.join(' '));
+                        }
+                    }
+                };
+
+                chunkText.split(/[\r\n]+|[.!?;]+/u).forEach((sentence) => {
+                    addSegments(normalizeDocumentText(sentence).split(' '));
+                });
+                addSegments(normalizeDocumentText(chunkText).split(' '));
+                return Array.from(segments);
+            }
+
+            function findMatchingParagraph(document, chunkText) {
+                const normalizedChunk = normalizeDocumentText(chunkText);
+                if (!normalizedChunk) return null;
+
+                const paragraphs = Array.from(document.querySelectorAll('p'))
+                    .map((paragraph) => {
+                        const text = normalizeDocumentText(paragraph.textContent || '');
+                        const tokens = text.split(' ').filter((word) => word.length > 2);
+                        return {
+                            element: paragraph,
+                            text,
+                            tokens,
+                            words: new Set(tokens)
+                        };
+                    })
+                    .filter((paragraph) => paragraph.words.size >= 5);
+
+                const exactCandidates = [
+                    normalizedChunk,
+                    ...chunkText.split(/[\r\n]+|[.!?;]+/u).map(normalizeDocumentText)
+                ].filter((candidate) => candidate.length >= 35);
+                for (const candidate of exactCandidates) {
+                    const exactMatch = paragraphs.find((paragraph) =>
+                        paragraph.text.includes(candidate)
+                        || (paragraph.text.length >= 100 && candidate.includes(paragraph.text))
+                    );
+                    if (exactMatch) {
+                        return { element: exactMatch.element, exact: true, score: 1 };
+                    }
+                }
+
+                const searchSegments = buildSearchSegments(chunkText);
+                if (searchSegments.length === 0 || paragraphs.length === 0) return null;
+
+                const wordFrequency = new Map();
+                const bigramFrequency = new Map();
+                const paragraphBigrams = paragraphs.map((paragraph) => {
+                    const bigrams = new Set();
+                    for (let index = 0; index < paragraph.tokens.length - 1; index += 1) {
+                        bigrams.add(`${paragraph.tokens[index]} ${paragraph.tokens[index + 1]}`);
+                    }
+                    paragraph.words.forEach((word) => {
+                        wordFrequency.set(word, (wordFrequency.get(word) || 0) + 1);
+                    });
+                    bigrams.forEach((bigram) => {
+                        bigramFrequency.set(bigram, (bigramFrequency.get(bigram) || 0) + 1);
+                    });
+                    return bigrams;
+                });
+                const inverseDocumentFrequency = (frequency) =>
+                    Math.log(1 + (paragraphs.length + 0.5) / (frequency + 0.5));
+                paragraphs.forEach((paragraph) => {
+                    paragraph.weight = Array.from(paragraph.words).reduce(
+                        (total, word) => total + inverseDocumentFrequency(wordFrequency.get(word) || 0),
+                        0
+                    );
+                });
+
+                let bestMatch = null;
+                let bestScore = 0;
+                let bestMatchedWordCount = 0;
+                searchSegments.forEach((segment) => {
+                    const segmentWords = segment.split(' ').filter((word) => word.length > 2);
+                    const uniqueWords = Array.from(new Set(segmentWords));
+                    const segmentBigrams = new Set();
+                    for (let index = 0; index < segmentWords.length - 1; index += 1) {
+                        segmentBigrams.add(`${segmentWords[index]} ${segmentWords[index + 1]}`);
+                    }
+
+                    const totalWordWeight = uniqueWords.reduce(
+                        (total, word) => total + inverseDocumentFrequency(wordFrequency.get(word) || 0),
+                        0
+                    );
+                    const totalBigramWeight = Array.from(segmentBigrams).reduce(
+                        (total, bigram) => total + inverseDocumentFrequency(bigramFrequency.get(bigram) || 0),
+                        0
+                    );
+                    if (!totalWordWeight || !totalBigramWeight) return;
+
+                    paragraphs.forEach((paragraph, index) => {
+                        let matchedWordWeight = 0;
+                        let matchedWordCount = 0;
+                        uniqueWords.forEach((word) => {
+                            if (paragraph.words.has(word)) {
+                                matchedWordWeight += inverseDocumentFrequency(wordFrequency.get(word) || 0);
+                                matchedWordCount += 1;
+                            }
+                        });
+                        if (matchedWordCount < 3) return;
+
+                        let matchedBigramWeight = 0;
+                        segmentBigrams.forEach((bigram) => {
+                            if (paragraphBigrams[index].has(bigram)) {
+                                matchedBigramWeight += inverseDocumentFrequency(bigramFrequency.get(bigram) || 0);
+                            }
+                        });
+
+                        const wordCoverage = matchedWordWeight / totalWordWeight;
+                        const bigramCoverage = matchedBigramWeight / totalBigramWeight;
+                        const precision = paragraph.weight ? matchedWordWeight / paragraph.weight : 0;
+                        const score = 0.55 * wordCoverage
+                            + 0.35 * bigramCoverage
+                            + 0.1 * Math.min(1, precision * 3);
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMatch = paragraph.element;
+                            bestMatchedWordCount = matchedWordCount;
+                        }
+                    });
+                });
+
+                return bestMatch && bestScore >= 0.4
+                    ? { element: bestMatch, exact: false, score: bestScore, matchedWordCount: bestMatchedWordCount }
+                    : null;
+            }
+
+            async function openArxivViewer(citedArxivUrl, chunkText) {
+                const requestId = ++arxivViewerRequestId;
+                arxivViewerReturnFocus = document.activeElement;
+                arxivViewerModal.classList.remove('hidden');
+                arxivViewerStatus.classList.remove('hidden');
+                arxivViewerStatus.textContent = 'Cargando documento de arXiv...';
+                arxivViewerFrame.classList.add('hidden');
+                arxivViewerFrame.srcdoc = '';
+                arxivViewerCloseButton.focus();
+
+                try {
+                    const citedUrl = new URL(citedArxivUrl);
+                    const arxivId = citedUrl.pathname.match(/^\/abs\/([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?)\/?$/);
+                    if (citedUrl.origin !== 'https://arxiv.org' || !arxivId) {
+                        throw new Error('El enlace del documento arXiv no tiene un identificador válido.');
+                    }
+
+                    const htmlUrl = `https://arxiv.org/html/${encodeURIComponent(arxivId[1])}`;
+                    const response = await fetch(htmlUrl);
+                    if (!response.ok) {
+                        throw new Error(`arXiv respondió con el estado HTTP ${response.status}.`);
+                    }
+
+                    const html = await response.text();
+                    const remoteDocument = new DOMParser().parseFromString(html, 'text/html');
+                    if (!remoteDocument.body) {
+                        throw new Error('La respuesta de arXiv no contiene un documento HTML válido.');
+                    }
+
+                    remoteDocument.querySelectorAll('script').forEach((script) => script.remove());
+                    remoteDocument.querySelectorAll('*').forEach((element) => {
+                        Array.from(element.attributes).forEach((attribute) => {
+                            if (attribute.name.toLowerCase().startsWith('on')) {
+                                element.removeAttribute(attribute.name);
+                            }
+                        });
+                    });
+
+                    let baseElement = remoteDocument.querySelector('base');
+                    if (!baseElement) {
+                        baseElement = remoteDocument.createElement('base');
+                        remoteDocument.head.prepend(baseElement);
+                    }
+                    baseElement.href = htmlUrl;
+
+                    if (requestId !== arxivViewerRequestId) return;
+                    const frameLoaded = new Promise((resolve) => {
+                        arxivViewerFrame.addEventListener('load', resolve, { once: true });
+                    });
+                    arxivViewerFrame.srcdoc = remoteDocument.documentElement.outerHTML;
+                    await frameLoaded;
+                    if (requestId !== arxivViewerRequestId) return;
+
+                    const match = findMatchingParagraph(arxivViewerFrame.contentDocument, chunkText);
+                    arxivViewerFrame.classList.remove('hidden');
+                    if (match) {
+                        const paragraph = match.element;
+                        paragraph.style.scrollMarginTop = '24px';
+                        paragraph.style.outline = '3px solid #f59e0b';
+                        paragraph.style.backgroundColor = '#fef3c7';
+                        paragraph.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        arxivViewerStatus.textContent = match.exact? 'Coincidencia de texto localizada y resaltada en el documento.' : 'Se encontró el párrafo más parecido y se resaltó en el documento.';
+                    } else {
+                        arxivViewerStatus.textContent = ''
+                    }
+                } catch (error) {
+                    if (requestId !== arxivViewerRequestId) return;
+                    arxivViewerStatus.textContent = `No se pudo cargar el documento: ${error.message}`;
+                }
+            }
+
+            function closeArxivViewer() {
+                arxivViewerRequestId += 1;
+                arxivViewerModal.classList.add('hidden');
+                arxivViewerFrame.classList.add('hidden');
+                arxivViewerFrame.srcdoc = '';
+                if (arxivViewerReturnFocus && arxivViewerReturnFocus.isConnected) {
+                    arxivViewerReturnFocus.focus();
+                }
+            }
+
             probabilitiesContainer.addEventListener('click', (event) => {
                 const link = event.target.closest('.function-link');
                 if (link) {
@@ -608,8 +929,12 @@
             drawerOverlay.addEventListener('click', closeFunctionDrawer);
 
             document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && !drawer.classList.contains('translate-x-full')) {
-                    closeFunctionDrawer();
+                if (event.key === 'Escape') {
+                    if (!arxivViewerModal.classList.contains('hidden')) {
+                        closeArxivViewer();
+                    } else if (!drawer.classList.contains('translate-x-full')) {
+                        closeFunctionDrawer();
+                    }
                 }
             });
          });
