@@ -36,8 +36,9 @@ venv/
 # Modelo y caché: llegan por el Volume en tiempo de ejecución
 # models/
 # cache/
-data-json/
+# data-json/
 data/
+!data/citations_labeled_v2.json
 docs/
 experimentos-mlflow/
 

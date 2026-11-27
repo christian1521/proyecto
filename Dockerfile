@@ -64,7 +64,7 @@ RUN pip install --no-cache-dir --user --upgrade pip && \
 # 3) Modelos SciBERT, cache y código (todo dentro de la imagen)
 COPY --chown=api-user:api-user models/scibert ./models/scibert
 COPY --chown=api-user:api-user app ./app
-COPY --chown=api-user:api-user data/citations_labeled_v2.json ./data
+COPY --chown=api-user:api-user data/citations_labeled_v2.json ./data/citations_labeled_v2.json
 COPY --chown=api-user:api-user run.sh ./run.sh
 ADD  --chown=api-user:api-user cache/chunks.tar.gz ./cache/
 
