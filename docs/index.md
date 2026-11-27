@@ -1,8 +1,8 @@
 # CiteAnalyzer: clasificación de la función de cita
 
-**Proyecto Desarrollo de Soluciones - MAIA Uniandes **
+**Proyecto Final - MAIA Uniandes **
 
-## Grupo 24 - Entrega 3 
+## Grupo 26
 
 ```
 Christian Alberto Torres Manigua 
@@ -11,17 +11,17 @@ Fredy Alexander Gamez Rodriguez
 
 **CiteAnalyzer** clasifica automáticamente el propósito discursivo de una cita académica en una de 
 **9 categorías**: `Background`, `Gap`, `Basis`, `Comparison`, `Application`, `Improvement/Modification`,
-`Evidence`, `Identification of the Originator` y `Further Reading`. Uso de modelos *encoder* (BERT y SciBERT) con *fine-tuning*. Se despliega con un API FastAPI y un tablero web, en un mismo contenedor Docker desplegado via Railway.
+`Evidence`, `Identification of the Originator` y `Further Reading`. Uso de modelos *encoder* (SciBERT) con *fine-tuning*. Se despliega con un API FastAPI y un tablero web, en un mismo contenedor Docker desplegado via Railway.
 
 ## Accesos al prototipo desplegado
 
 | Recurso | URL |
 | --- | --- |
-| Repositorio código en Github | <https://github.com/christian1521/microproyecto> <br>[Ver detalles](desarrollo.md) |
-| Imagen Docker | <https://hub.docker.com/repository/docker/fredygamez/cite-api/tags> (`fredygamez/cite-api:v0.9`) |
-| Página de inicio | <https://cite-api-production.up.railway.app/> |
-| API | <https://cite-api-production.up.railway.app/docs/> |
-| Tablero (aplicación) | <https://cite-api-production.up.railway.app/cite/> |
+| Repositorio código en Github | <https://github.com/christian1521/proyecto> <br>[Ver detalles](desarrollo.md) |
+| Página de inicio | <https://cite-proyecto-grupo26-production.up.railway.app/> |
+| API | <https://cite-proyecto-grupo26-production.up.railway.app/docs/> |
+| Tablero (aplicación) | <https://cite-proyecto-grupo26-production.up.railway.app/cite/> |
+| Imagen Docker | <http://ghcr.io/christian1521/cite-proyecto-grupo26:latest> <br> `christian1521/cite-proyecto-grupo26` |
 
 ## Manuales
 
@@ -39,12 +39,12 @@ Fredy Alexander Gamez Rodriguez
 
 | Categoría | Tecnología |
 | --- | --- |
-| Modelos | BERT y SciBERT con *fine-tuning* |
+| Modelos | SciBERT (*fine-tuning*) , Gemma3_4b (Local), Nvidia Nemotron 3 (API) |
 | Experimentos | MLflow en AWS EC2 |
-| Datos y modelos versionados | DVC con remoto AWS-S3 (`s3://christian1521-dvcstore`) |
+| Datos y modelos versionados | DVC con remoto AWS-S3 (`s3://dvcproject-ia/citeanalyzer`) |
 | API | FastAPI + Uvicorn (`/api/v1`) |
 | Tablero | HTML/JS por FastAPI (`/cite/`) |
-| Contenedor | Docker (`python:3.12-slim`), una imagen para API y Tablero |
-| Registro de imágenes | DockerHub (`fredygamez/cite-api`) |
-| Despliegue (PaaS) | Railway |
-| Código fuente | Repositorio GitHub |
+| Contenedor | Docker (`python:3.14-slim`), una imagen para Modelos, API y Tablero |
+| Registro de imágenes | Github Containers  (http://ghcr.io/christian1521/cite-proyecto-grupo26:latest) |
+| Despliegue (PaaS) | Railway en contenedores Docker |
+| Código fuente | Repositorio GitHub https://github.com/christian1521/proyecto |
