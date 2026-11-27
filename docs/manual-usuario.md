@@ -6,8 +6,8 @@
 
 Hay varias formas de ingresar:
 
-- Directamente: <https://cite-api-production.up.railway.app/cite/>
-- Desde la página de inicio <https://cite-api-production.up.railway.app/>, con el botón **Abrir Tablero (Aplicación)**. El botón **Abrir Documentación del API** abre Swagger.
+- Directamente: <https://cite-proyecto-grupo26-production.up.railway.app/cite/>
+- Desde la página de inicio <https://cite-proyecto-grupo26-production.up.railway.app/>, con el botón **Abrir Tablero (Aplicación)**. El botón **Abrir Documentación del API** abre Swagger.
 
 ![Página de inicio](images/image-20260922135617600.png)
 
@@ -23,11 +23,11 @@ Hay varias formas de ingresar:
 Ejemplo de contexto de cita:
 
 ```
-Similar to the method proposed in [CITATION], we adopt a transformer-based architecture.
+Similar to the method proposed in [CITA], we adopt a transformer-based architecture.
 ```
 
 > [!IMPORTANT]
-> Si llena el **Párrafo del Documento Citado**, el **Contexto de Cita** tiene que incluir el marcador `[CITATION]` justo donde va la referencia. Sin el marcador, el API responde con error 400 y no hace el análisis.
+> Si llena el **Párrafo del Documento Citado**, el **Contexto de Cita** tiene que incluir el marcador `[CITA]` justo donde va la referencia. Sin el marcador, el API responde con error 400 y no hace el análisis.
 
 Se recomienda escribir la oración completa. El modelo se entrenó con oraciones de unas 34 palabras (mediana), y una frase cortada pierde pistas que ayudan a identificar la función.
 
@@ -35,10 +35,11 @@ Se recomienda escribir la oración completa. El modelo se entrenó con oraciones
 
 En **Selecciona el Modelo Clasificador** se escoge el modelo:
 
-| Opción | Modelo | F1 macro (MLflow) |
-| --- | --- | --- |
-| BERT fine-tuning (por defecto) | `bert-citfunc-seed42` | 0,828 |
-| SciBERT fine-tuning | `scibert-citfunc-seed42` | 0,883 |
+| Opción | Modelo |
+| --- | --- |
+| SciBERT fine-tuning (por defecto) | `scibert-citfunc-seed42` |
+| Gemma3_4b | `gemma` |
+| Nemotron | `nemotron` |
 
 Puede analizar la misma cita con los dos modelos y comparar los resultados.
 
@@ -68,7 +69,7 @@ Los resultados aparecen en dos paneles.
 
 ## 6. Uso directo del API (opcional)
 
-En <https://cite-api-production.up.railway.app/docs> puede probar los servicios con **Try it out**:
+En <https://cite-proyecto-grupo26-production.up.railway.app/> puede probar los servicios con **Try it out**:
 
 | Método | Ruta | Uso |
 | --- | --- | --- |
@@ -86,6 +87,6 @@ En <https://cite-api-production.up.railway.app/docs> puede probar los servicios 
 }
 ```
 
-`type_model` acepta `scibert` o `bert`.
+`type_model` acepta `scibert`,  `gemma3`, `nemotron`
 
 [Volver al inicio](index.md)

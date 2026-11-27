@@ -1,6 +1,6 @@
 # CiteAnalyzer - Clasificación de la función de cita
 
-Proyecto Desarrollo de Soluciones - MAIA Uniandes - **Grupo 26**
+Proyecto Final Despliegue de Soluciones - MAIA Uniandes - **Grupo 26**
 
 ```ini
 Christian Alberto Torres Manigua # ca.torres@uniandes.edu.co
@@ -24,9 +24,10 @@ Se contemplan estos componentes para crear una solución completa para el usuari
 | Recurso | URL |
 | --- | --- |
 | Código | <https://github.com/christian1521/proyecto> |
-| Tablero | <https://cite-api-production.up.railway.app/cite/> |
-| API | <https://cite-api-production.up.railway.app/docs/> |
-| Docker | `docker pull ghcr.io/christian1521/cite-proyecto-grupo26:v0.93` |
+| Tablero | <https://cite-proyecto-grupo26-production.up.railway.app/cite/> |
+| API | <https://cite-proyecto-grupo26-production.up.railway.app/docs/> |
+| Docker | <http://ghcr.io/christian1521/cite-proyecto-grupo26:latest> |
+| Docker pull | `docker pull ghcr.io/christian1521/cite-proyecto-grupo26` |
 
 ### Inicio rápido
 

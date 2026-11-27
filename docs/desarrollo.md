@@ -2,10 +2,10 @@
 
 ## Estructura del repositorio
 
-Repositorio: <https://github.com/christian1521/microproyecto>
+Repositorio: <https://github.com/christian1521/proyecto>
 
 ```apl
-https://github.com/christian1521/microproyecto
+https://github.com/christian1521/proyecto
 ```
 
 ```
@@ -72,24 +72,25 @@ https://github.com/christian1521/microproyecto
 
 | Capa | Tecnología |
 | --- | --- |
-| Lenguaje | Python 3.12 (imagen); ≥ 3.9 (paquete) |
+| Lenguaje | Python 3.14 (imagen); ≥ 3.9 (paquete) |
 | Modelos | Transformers ≥ 4.46, PyTorch ≥ 2.13 (CPU) |
 | API | FastAPI ≥ 0.115, Uvicorn ≥ 0.32, Pydantic 2 |
 | Tablero | HTML + CSS + JavaScript, servido con `StaticFiles` |
 | Experimentos | MLflow en AWS EC2 (puerto 8050) |
 | Versionado de datos | DVC + S3 |
-| Contenedor / registro | Docker / DockerHub |
+| Contenedor / registro | Github Container Registry ghcr |
 | Despliegue | Railway (PaaS) |
 | Pruebas | pytest vía tox |
 
 ## Modelos implementados
 
-| Modelo | Identificador para MLflow |
+| Modelo | Identificador |
 | --- | --- |
-| SciBERT (`allenai/scibert_scivocab_uncased`) fine-tuned | `scibert-citfunc-seed42` |
-| BERT fine-tuned | `bert-citfunc-seed42` |
+| SciBERT *(fine-tuned)* | `scibert_scivocab_uncased` |
+| Gemma3 | `gemma3:4b` |
+| Nemotron | `nemotron-3-ultra-550b-a55b` |
 
-Los modelos se cargan de forma diferida en la primera petición. La entrada se trunca a `MAX_LENGTH=128`
+Los modelos se cargan de forma diferida en la primera petición. La entrada se trunca a `MAX_LENGTH=512`
 tokens. Si llega `cited_paragraphs`, el texto de entrada se arma así:
 `"<citing_sentence> CONTEXT: In the text, the [CITATION] tag refers to: <cited_paragraphs>"`.
 

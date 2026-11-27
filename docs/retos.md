@@ -1,6 +1,6 @@
 # Retos y evidencias de la entrega final
 
-**Grupo 24**: Christian Alberto Torres Manigua / Fredy Alexander Gamez Rodriguez
+**Grupo 26**: Christian Alberto Torres Manigua / Fredy Alexander Gamez Rodriguez
 
 > [!NOTE]
 > Esta bitácora reúne las evidencias y los retos técnicos que se presentaron al probar los modelos, al construir la imagen Docker y al desplegarla en Railway. No es un instructivo. Los pasos oficiales están en el [Manual de instalación](manual-instalacion.md).
